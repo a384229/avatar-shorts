@@ -42,8 +42,8 @@ videos/片名/     每支片：script.txt、director.json、錄音稿.txt、使�
 - **關卡：** 使用者看總覽圖說 OK
 
 ### 3. 導演表 → 讀 `references/director.md`
-- 第一次先問風格（給他看 references/director.md 的風格表）：奶茶極簡、莫蘭迪綠、霧粉雜誌、黑金質感、霧藍清新、燕麥紙感（高級 IG 風），或活潑（卡通暖黃）。選好記在 `ip.md` 的「風格」，之後每支沿用
-- `python scripts/direct.py new videos/片名 --script videos/片名/script.txt --hook "開場大字" --sub "身分標籤" --theme 奶茶極簡` 產生初稿
+- 第一次先問風格（給他看 references/director.md 的風格表）：拼貼、拼貼橘（粗字吸睛，推薦）、奶茶極簡、莫蘭迪綠、霧粉雜誌、黑金質感、霧藍清新、燕麥紙感（高級 IG 風），或活潑（卡通暖黃）。選好記在 `ip.md` 的「風格」，之後每支沿用
+- `python scripts/direct.py new videos/片名 --script videos/片名/script.txt --hook "開場大字" --sub "身分標籤" --theme 拼貼` 產生初稿
 - **Claude 逐句檢查、修改**表情／道具／運鏡／標籤／強調字（初稿只是關鍵字猜的），照 director.md 的「排表情原則」
 - 使用者有素材（截圖、照片、影片）：放 `素材/`，那句加 `media`（card 卡片／full 全畫面）
 - 配樂：問使用者要不要音樂；沒有自己的就 `python scripts/music.py make 輕快 --director …`（輕快、可愛、科技、溫馨、熱血）

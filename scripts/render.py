@@ -36,6 +36,13 @@ THEMES = {
     '燕麥紙感': dict(bg='#EFE7DA', bg2='#E6DBCA', accent='#2F2A25', ink='#2F2A25', hl='#F0C96B', pattern='none', grain=10,
                  sticker=False, glow=False, cap='marker', cap_color='#2F2A25',
                  hook_style='elegant', banner_style='line', motion='soft', head_size=0.84, label_l='NOTE', label_r='01'),
+    # 拼貼風：粗字、反白色塊、斜紋底、深色字幕框、粗框貼紙卡片（參考 IG 爆款教學帳號）
+    '拼貼': dict(bg='#F3EBDD', bg2='#EBDFCB', accent='#F26B1D', ink='#1E2A47', hl='#F26B1D', ribbon='#2449B8', ribbon_hl='#FFC83D',
+               pattern='stripes_soft', grain=0, sticker=False, glow=False, cap='dark', hook_style='collage', banner_style='bubble',
+               big_style='heavy', motion='bouncy', head_size=0.84, caption_size=78, doodle=True),
+    '拼貼橘': dict(bg='#F47B20', bg2='#EF6E12', accent='#FFE14D', ink='#1E1E1E', hl='#FFE14D', ribbon='#1E1E1E', ribbon_hl='#FFE14D',
+                pattern='stripes_soft', grain=0, sticker=False, glow=False, cap='dark', hook_style='collage', banner_style='bubble',
+                big_style='heavy', motion='bouncy', head_size=0.84, caption_size=78, doodle=True, title_color='#FFFFFF'),
 }
 for _k, _v in THEMES.items():
     if _v: _v.setdefault('caption_size', 74)
@@ -89,6 +96,10 @@ class R:
         elif pat == 'grid':
             for k in range(0, w, step): d.line([(k, 0), (k, h)], fill=c, width=self.px(3))
             for k in range(0, h, step): d.line([(0, k), (w, k)], fill=c, width=self.px(3))
+        elif pat == 'stripes_soft':   # 寬斜紋（拼貼風）
+            light = sum(hexrgb(self.st['bg'])) > 600
+            cc = (255, 255, 255, 120) if light else (255, 255, 255, 28); sw = self.px(46)
+            for k in range(-h, w + h, self.px(150)): d.polygon([(k, h), (k + sw, h), (k + sw + h, 0), (k + h, 0)], fill=cc)
         elif pat == 'grid_fine':   # 很淡的細方格（筆記本感）
             cc = hexrgb(self.st['ink']) + (14,); st2 = self.px(90)
             for k in range(0, w, st2): d.line([(k, 0), (k, h)], fill=cc, width=max(1, self.px(2)))
@@ -98,6 +109,9 @@ class R:
             gd.ellipse([cx - r, cy - r, cx + r, cy + r], fill=120 if self.st['pattern'] != 'none' or self.st.get('sticker') else 45)
             glow = glow.filter(ImageFilter.GaussianBlur(self.px(120)))
             im.paste(Image.new('RGB', (w, h), 'white' if sum(hexrgb(self.st['bg'])) > 380 else self.st['accent']), (0, 0), glow)
+        if self.st.get('footer'):   # 底部品牌小字（在字幕下面、平台遮擋區上面）
+            f = ImageFont.truetype(self.fb, self.px(34)); col = hexrgb(self.st['ink']) + (150,)
+            d.text((w / 2, self.px(1430)), self.st['footer'], font=f, fill=col, anchor='mm')
         if self.st.get('frame'):   # 細線外框＋角落小字（雜誌感），避開上方 250、下方 450 的平台遮擋區
             ink = hexrgb(self.st['ink']) + (110,); m = self.px(54); lw = max(1, self.px(2))
             d.rectangle([m, self.px(250), w - m, self.px(1455)], outline=ink, width=lw)
@@ -381,13 +395,14 @@ class R:
         if hk:   # 開場標題在的時候，大頭縮小往下讓位，標題收掉時再放大回來
             u = hk.get('until', 3.0); m = 1 - out3((t - u) / 0.4) if t > u else 1.0
             if m > 0:
-                f = 1 - 0.2 * m; hi = hi.resize((max(1, int(hi.width * f)), max(1, int(hi.height * f))), Image.BILINEAR); cy += self.px(130) * m
+                col = self.st.get('hook_style') == 'collage'; f = 1 - (0.3 if col else 0.2) * m; hi = hi.resize((max(1, int(hi.width * f)), max(1, int(hi.height * f))), Image.BILINEAR); cy += self.px(230 if col else 130) * m
         if self.st.get('shape') and mode != 'full':   # 頭後面的色塊（跟著頭的位置和大小）
             shp = self.shape_img(hi.width // 6 * 6, hi.height // 6 * 6)
             yb = cy + hi.height / 2 - shp.height   # 底部對齊頭的下緣
             if self.st['shape'] == 'circle': yb = cy - shp.height / 2 + hi.height * 0.04
             scene.alpha_composite(shp, (int(cx - shp.width / 2), int(yb)))
         scene.alpha_composite(hi, (int(cx - hi.width / 2), int(cy - hi.height / 2)))
+        self._head_box = (cx - hi.width * 0.36, cx + hi.width * 0.36)   # 臉大約的左右邊（扣掉透明邊）
         # 道具
         props = L.get('prop') or []
         props = [props] if isinstance(props, str) else props
@@ -452,6 +467,10 @@ class R:
         st = self.st; size = self.px(st['caption_size']); kind = st.get('cap', 'stroke'); col = st.get('cap_color', 'white')
         if kind == 'stroke':
             img = self.text_img(c, size, 'white', st['ink'], self.px(9), emph=emph, hl=st['hl'])
+        elif kind == 'dark':   # 深色圓角框＋白字（拼貼風）
+            t = self.text_img(c, size, '#FFFFFF', 'same', self.px(2), emph=emph, hl=st['hl'], sp=self.px(2))
+            img = Image.new('RGBA', (t.width + self.px(64), t.height + self.px(22))); ImageDraw.Draw(img).rounded_rectangle([0, 0, img.width - 1, img.height - 1], self.px(20), fill=(38, 32, 28, 240))
+            img.alpha_composite(t, (self.px(32), self.px(9)))
         elif kind == 'marker':
             img = self.halo(self.text_img(c, size, col, 'same', self.px(1), emph=emph, marker=st['hl'], sp=self.px(2)))
         else:
@@ -490,6 +509,7 @@ class R:
         until = hook.get('until', 3.0)
         if t > until + 0.3: return
         if self.st.get('hook_style') == 'elegant': return self.draw_hook_elegant(scene, hook, t, until)
+        if self.st.get('hook_style') == 'collage': return self.draw_hook_collage(scene, hook, t, until)
         k = back(t / 0.28, 2.2) if t < until else 1 - out3((t - until) / 0.3)
         if k <= 0.02: return
         lines = hook['text'].split('\n') if '\n' in hook['text'] else chunks(hook['text'], hook.get('max', 8))[:2]
@@ -547,9 +567,16 @@ class R:
             imgs = [self.text_img(x, size, st['ink'], 'same', max(1, self.px(3)), sp=self.px(4)) for x in lines[:-1]]
             last = self.text_img(lines[-1], size, st['bg'] if light else st['ink'], 'same', max(1, self.px(3)), sp=self.px(4))
             imgs.append(self.block(last, st['accent']))   # 最後一行：色塊反白
+            if st.get('big_style') == 'heavy':   # 白字粗黑邊＋往右下的陰影（拼貼風）
+                imgs = [self.heavy(x, size, j == len(lines) - 1) for j, x in enumerate(lines)]
             self._txt[k] = imgs
         imgs = self._txt[k]
         cx = {'left': 0.76, 'right': 0.26}.get(lay, 0.5) * self.w
+        hb = getattr(self, '_head_box', None)
+        if side and hb:   # 放在臉和畫面邊緣中間，不壓到臉
+            wmax = max(im.width for im in imgs)
+            cx = (hb[1] + self.px(960)) / 2 if lay == 'left' else (self.px(40) + hb[0]) / 2
+            cx = min(max(cx, self.px(30) + wmax / 2), self.px(960) - wmax / 2)
         lh = imgs[0].height * 0.95; cy = (self.px(860) if side else self.px(330 if lay == 'close' else 520)) - lh * (len(imgs) - 1) / 2
         out = clamp(left / 0.2)
         for j, im in enumerate(imgs):
@@ -566,6 +593,84 @@ class R:
     def prop_start(self, L):
         hk = self.D.get('hook'); s = L['start']
         return max(s, hk.get('until', 3.0) + 0.15) if hk else s
+
+    def card(self, img, fill, outline, tail=False, rot=0, padx=None, pady=None):
+        """粗框卡片＋往右下的實心陰影（拼貼風）"""
+        padx = padx or self.px(34); pady = pady or self.px(14); lw = self.px(6); off = self.px(9); th = self.px(28) if tail else 0
+        w, h = img.width + padx * 2, img.height + pady * 2
+        c = Image.new('RGBA', (w + off + lw * 2, h + off + lw * 2 + th)); d = ImageDraw.Draw(c); r = self.px(22)
+        oc = rgba(outline)
+        d.rounded_rectangle([lw + off, lw + off, lw + off + w, lw + off + h], r, fill=oc)
+        d.rounded_rectangle([lw, lw, lw + w, lw + h], r, fill=fill, outline=oc, width=lw)
+        if tail:
+            x0 = lw + self.px(60); y0 = lw + h - lw
+            d.polygon([(x0, y0), (x0 + self.px(44), y0), (x0 - self.px(6), y0 + th + self.px(6))], fill=fill)
+            d.line([(x0 - self.px(6), y0 + th + self.px(6)), (x0, y0 + lw)], fill=oc, width=lw); d.line([(x0 - self.px(6), y0 + th + self.px(6)), (x0 + self.px(44), y0 + lw)], fill=oc, width=lw)
+        c.alpha_composite(img, (lw + padx, lw + pady))
+        return c.rotate(rot, Image.BICUBIC, expand=True) if rot else c
+
+    def heavy(self, txt, size, accent=False):
+        """超粗大字：白字（或強調色）＋深色粗邊＋右下陰影"""
+        st = self.st; fill = st['accent'] if accent else st.get('title_color', '#FFFFFF')
+        sw = max(2, int(size * 0.09)); off = max(2, int(size * 0.07))
+        a = self.text_img(txt, size, fill, st['ink'], sw, sp=self.px(2))
+        sh = self.text_img(txt, size, st['ink'], st['ink'], sw, sp=self.px(2))
+        out = Image.new('RGBA', (a.width + off, a.height + off)); out.alpha_composite(sh, (off, off)); out.alpha_composite(a, (0, 0)); return out
+
+    def draw_hook_collage(self, scene, hook, t, until):
+        """拼貼風開場：系列小標膠囊 → 兩行超粗標題（重點字換色）→ 斜的色帶 → 小塗鴉"""
+        st = self.st; out = 1 - out3((t - until) / 0.25) if t > until else 1.0
+        if out <= 0: return
+        y = self.px(hook.get('y', 330)); key = ('hc', hook['text'], hook.get('sub'), hook.get('ribbon'))
+        if key not in self._txt:
+            parts = {}
+            if hook.get('sub'):
+                tx = self.text_img(hook['sub'], self.px(44), st['ink'], 'same', self.px(2), sp=self.px(2))
+                dot = self.px(14); pill = Image.new('RGBA', (tx.width + dot * 2 + self.px(70), tx.height + self.px(22))); d = ImageDraw.Draw(pill)
+                d.rounded_rectangle([0, 0, pill.width - 1, pill.height - 1], pill.height // 2, fill='#FFFFFF', outline=st['ink'], width=self.px(4))
+                cy_ = pill.height // 2; d.ellipse([self.px(26), cy_ - dot // 2, self.px(26) + dot, cy_ + dot // 2], fill=st['accent'] if st['accent'] != '#FFE14D' else '#F26B1D')
+                pill.alpha_composite(tx, (self.px(26) + dot + self.px(16), self.px(11))); parts['pill'] = pill
+            lines = hook['text'].split('\n') if '\n' in hook['text'] else chunks(hook['text'], 7)[:2]
+            n = max(len(x) for x in lines); size = self.px(min(140, int(940 / max(1, n))))
+            em = hook.get('emph', [])
+            ims = []
+            for ln in lines:
+                tcol = st.get('title_color', st['ink'])
+                ims.append(self.text_img(ln, size, tcol, 'same', max(2, int(size * 0.05)), emph=em, hl=st['accent'] if st['accent'] != tcol else st['hl'], sp=self.px(3)))
+            parts['title'] = ims
+            if hook.get('ribbon'):
+                rb = hook['ribbon']; segs = rb.split('•'); f = self.px(52)
+                ts = [self.text_img(sg.strip(), f, '#FFFFFF' if j == 0 else st.get('ribbon_hl', '#FFC83D'), 'same', self.px(2), sp=self.px(2)) for j, sg in enumerate(segs)]
+                dotw = self.px(40); tw = sum(x.width for x in ts) + dotw * (len(ts) - 1)
+                band = Image.new('RGBA', (tw + self.px(90), ts[0].height + self.px(24))); d = ImageDraw.Draw(band); d.rectangle([0, 0, band.width, band.height], fill=st.get('ribbon', '#2449B8'))
+                x = self.px(45)
+                for j, im in enumerate(ts):
+                    if j: d.ellipse([x + dotw // 2 - self.px(5), band.height // 2 - self.px(5), x + dotw // 2 + self.px(5), band.height // 2 + self.px(5)], fill='#FFFFFF'); x += dotw
+                    band.alpha_composite(im, (x, self.px(12))); x += im.width
+                parts['ribbon'] = band.rotate(-1.5, Image.BICUBIC, expand=True)
+            self._txt[key] = parts
+        P = self._txt[key]; yy = y
+        if 'pill' in P:
+            self.paste_scaled(scene, P['pill'], self.w / 2, yy - self.px(70), back(t / 0.3, 2) * out)
+        lh = P['title'][0].height * 0.98
+        for j, im in enumerate(P['title']):
+            self.paste_scaled(scene, im, self.w / 2, yy + self.px(70) + j * lh, back((t - 0.1 - 0.1 * j) / 0.3, 2) * out)
+        ty = yy + self.px(70) + len(P['title']) * lh
+        if 'ribbon' in P:
+            k = out3((t - 0.35) / 0.3)
+            if k > 0:
+                rb = P['ribbon']; vis = rb.crop((0, 0, max(1, int(rb.width * k)), rb.height))
+                if out < 1: vis = self.fade(vis, out)
+                scene.alpha_composite(vis, (int(self.w / 2 - rb.width / 2), int(ty - self.px(10))))
+        if st.get('doodle') and t > 0.3:   # 塗鴉：左邊三條放射線、右邊閃亮星星
+            a = clamp((t - 0.3) / 0.2) * out; d = ImageDraw.Draw(scene); oc = hexrgb(st['accent'] if st['accent'] != '#FFE14D' else '#1E1E1E') + (int(255 * a),)
+            w0 = P['title'][0].width; x0 = self.w / 2 - w0 / 2 - self.px(30); y0 = yy + self.px(10); lw = self.px(9)
+            for ang in (200, 235, 270):
+                r1, r2 = self.px(20), self.px(70); ca, sa = math.cos(math.radians(ang)), math.sin(math.radians(ang))
+                d.line([(x0 + ca * r1, y0 + sa * r1), (x0 + ca * r2, y0 + sa * r2)], fill=oc, width=lw)
+            sx = self.w / 2 + w0 / 2 + self.px(50); sy = yy - self.px(40); R = self.px(34) * (0.9 + 0.1 * math.sin(t * 6)); r = R * 0.28
+            pts = [(sx + (R if q % 2 == 0 else r) * math.cos(math.radians(q * 45 - 90)), sy + (R if q % 2 == 0 else r) * math.sin(math.radians(q * 45 - 90))) for q in range(8)]
+            d.polygon(pts, fill=(255, 255, 255, int(255 * a)), outline=hexrgb(st['ink']) + (int(255 * a),), width=self.px(5))
 
     def block(self, img, color, padx=None, pady=None):
         """字放在色塊上（重點字用，比較吸睛）"""
@@ -607,6 +712,13 @@ class R:
 
     def draw_banner(self, scene, text, lt, left):
         bs = self.st.get('banner_style', 'solid')
+        if bs == 'bubble':   # 對話框：白底粗框＋小尾巴＋陰影
+            k = ('bub', text)
+            if k not in self._txt:
+                st = self.st; t = self.text_img(text, self.px(56), st['ink'], 'same', self.px(3), sp=self.px(3))
+                self._txt[k] = self.card(t, '#FFFFFF', st['ink'], tail=True)
+            tag = self._txt[k]; sc = back(lt / 0.3, 2.0) * clamp(left / 0.15)
+            self.paste_scaled(scene, tag, self.w / 2, self.px(300), sc); return
         if bs != 'solid':   # 高級感標籤：淡入、細框或細線，不從旁邊飛進來
             k = ('ban', text, bs)
             if k not in self._txt:
