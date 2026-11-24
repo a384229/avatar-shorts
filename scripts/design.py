@@ -405,12 +405,33 @@ class Design:
             self._c[key] = im
         return self._c[key]
 
+    def name_tag(self):
+        """人物下方的小名牌（style.footer，例如「于葳影音｜網紅陪跑製造機」）"""
+        txt = self.r.st.get('footer')
+        if not txt: return None
+        if 'tag' in self._c: return self._c['tag']
+        T = self.T; k = T['kind']; f = SANSM if k == 'swiss' else T['lead']; size = 30
+        w = int(self.tw(txt, f, size)) + 48; h = 56
+        im = Image.new('RGBA', (w + 16, h + 16), (0, 0, 0, 0))
+        if k == 'soft': self.rrect(im, [0, 0, w, h], 28, (255, 255, 255, 235), shadow=(0, 0, 0, 40), soff=(0, 6), blur=6); fg = T['ink']
+        elif k == 'polaroid': self.rrect(im, [0, 0, w, h], 4, '#FFFFFF', shadow=(0, 0, 0, 45), soff=(3, 6), blur=6); fg = T['ink']
+        else: ImageDraw.Draw(im).rectangle([0, 0, w, h], fill=T['ink']); fg = T.get('light', '#FFFFFF')
+        self.text(ImageDraw.Draw(im), (w / 2, h / 2), txt, f, size, fg, 'mm')
+        self._c['tag'] = im; return im
+
+    def put_tag(self, scene, fx, fw):
+        tag = self.name_tag()
+        if tag is None: return
+        cx = min(max(fx + fw / 2, 30 + tag.width / 2), 960 - tag.width / 2)
+        scene.alpha_composite(tag, (int(cx - tag.width / 2), int(FACE_BOTTOM - 95)))
+
     def cover_image(self):
         """封面：背景＋開場標題全部顯示＋人物（第一句的表情），不放字幕"""
         img = self.bg.copy()
         for lay, _ in self.cover_layers(): img.alpha_composite(lay)
         im = self.face(self.lines[0].get('face', 'neutral'), False); side = self.r.st.get('cover_side', 'r')
         img.alpha_composite(im, (int(self.face_x(side, im.width)), int(FACE_BOTTOM - im.height)))
+        self.put_tag(img, self.face_x(side, im.width), im.width)
         return img.convert('RGB')
 
     # ---------- 一格 ----------
@@ -472,6 +493,7 @@ class Design:
             sc = 0.97 + 0.03 * out3(lt / 0.3); im = im.resize((int(im.width * sc), int(im.height * sc)), Image.BILINEAR)
             x += (im.width / sc - im.width) / 2
         scene.alpha_composite(im, (int(x), int(FACE_BOTTOM - im.height)))
+        self.put_tag(scene, x, im.width)
         # 字幕：放在人物旁邊的空位
         side = s1 if kk > 0.5 else s0
         for (a0, a1, c, emph) in r.cplan:
