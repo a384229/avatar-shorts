@@ -44,6 +44,9 @@ THEMES = {
                 pattern='stripes_soft', grain=0, sticker=False, glow=False, cap='dark', hook_style='collage', banner_style='bubble',
                 big_style='heavy', motion='bouncy', head_size=0.84, caption_size=78, doodle=True, title_color='#FFFFFF', stage='side', title_fx='heavy'),
 }
+# 設計感系列（scripts/design.py）：人物在下方角落當配角，字幕放人物旁邊，不壓到臉
+from design import DESIGN_THEMES
+for _k in DESIGN_THEMES: THEMES[_k] = dict(stage='design', sticker=False)
 for _k, _v in THEMES.items():
     if _v: _v.setdefault('caption_size', 74)
 PROP_POS = {'right': (0.76, 0.33), 'left': (0.22, 0.33), 'top': (0.5, 0.2), 'top_right': (0.74, 0.22), 'top_left': (0.24, 0.22),
@@ -68,6 +71,7 @@ class R:
             if th not in THEMES: raise SystemExit(f'沒有「{th}」這個風格，可選：' + '、'.join(THEMES))
             st.update(THEMES[th])
         st.update(us); self.st = st
+        self.dz = None
         self.lines = self.D['lines']
         if any('start' not in l for l in self.lines): raise SystemExit('導演表還沒有時間：先跑 voice.py say（或 voice.py silent 先看畫面）')
         self.dur = self.D.get('duration') or self.lines[-1]['end'] + 0.7
@@ -77,6 +81,9 @@ class R:
         self.env = self.voice_env()
         self.bg = self.make_bg()
         self.rng = random.Random(7)
+        if st.get('stage') == 'design':
+            from design import Design
+            self.dz = Design(self, th)
 
     def px(self, v): return int(round(v * self.S))
 
@@ -309,6 +316,7 @@ class R:
         L = self.lines[i]; tr = L.get('trans')
         if tr == 'none': return None
         if tr: return tr
+        if self.st.get('stage') == 'design' and self.D.get('transition', 'auto') == 'auto': return None   # 設計感版面：換句用淡入，不加大轉場
         if L.get('banner'):   # 自動：每個新段落（有標籤的句子）換場，輪流用縮放穿越、百葉窗
             k = sum(1 for l in self.lines[1:i] if l.get('banner') and l.get('trans') != 'none')
             d = self.D.get('transition', 'auto')
@@ -353,6 +361,7 @@ class R:
         return B
 
     def frame_raw(self, fi):
+        if self.dz: return self.dz.frame(fi)
         t = fi / FPS; S = self.S; st = self.st; i = self.line_at(t); L = self.lines[i]; lt = t - L['start']
         ldur = max(0.3, L['end'] - L['start'])
         prev_face = self.lines[i - 1].get('face', 'neutral') if i > 0 else None

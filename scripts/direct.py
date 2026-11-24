@@ -139,7 +139,7 @@ def lint(path):
 
 if __name__ == '__main__':
     ap = argparse.ArgumentParser(); sp = ap.add_subparsers(dest='cmd', required=True)
-    p = sp.add_parser('new'); p.add_argument('dir'); p.add_argument('--script'); p.add_argument('--hook'); p.add_argument('--sub'); p.add_argument('--title'); p.add_argument('--theme', help='風格：拼貼、拼貼橘、活潑、奶茶極簡、莫蘭迪綠、霧粉雜誌、黑金質感、霧藍清新、燕麥紙感')
+    p = sp.add_parser('new'); p.add_argument('dir'); p.add_argument('--script'); p.add_argument('--hook'); p.add_argument('--sub'); p.add_argument('--title'); p.add_argument('--theme', help='風格：柔霧奶茶、柔霧藍、柔霧綠、柔霧莓、瑞士極簡、瑞士拼貼、拍立得、撕紙、拼貼、拼貼橘、活潑、奶茶極簡、莫蘭迪綠、霧粉雜誌、黑金質感、霧藍清新、燕麥紙感')
     p.set_defaults(f=cmd_new)
     p = sp.add_parser('show'); p.add_argument('director'); p.set_defaults(f=lambda a: show(a.director))
     p = sp.add_parser('lint'); p.add_argument('director'); p.set_defaults(f=lambda a: sys.exit(1 if lint(a.director)[0] else 0))

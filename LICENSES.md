@@ -3,6 +3,8 @@
 | 內容 | 來源 | 授權 |
 |---|---|---|
 | assets/fonts/Huninn-Regular.ttf | justfont 粉圓（Huninn，圓體） | SIL Open Font License 1.1，可商用（授權全文 assets/fonts/OFL-Huninn.txt） |
+| assets/fonts/NotoSerif-*.ttf、NotoSans-*.ttf | 思源宋體／思源黑體繁中（Noto Serif TC／Noto Sans TC，取 Big5 常用字子集） | SIL Open Font License 1.1，可商用（OFL-NotoSerifTC.txt、OFL-NotoSansTC.txt） |
+| assets/fonts/DMSerifDisplay-Italic.ttf | DM Serif Display Italic（英文斜體，取英文子集） | SIL Open Font License 1.1（OFL-DMSerifDisplay.txt） |
 | assets/props/*.png | Google Noto Color Emoji 圖檔 | Apache License 2.0，可商用 |
 | assets/demo_faces/*.png | 本 skill 用程式畫的示範角色 | 隨 skill 自由使用 |
 | scripts/sfx.py 音效 | 程式即時合成，沒有外部音檔 | 隨 skill 自由使用 |
