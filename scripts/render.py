@@ -609,6 +609,11 @@ class R:
         c.alpha_composite(img, (lw + padx, lw + pady))
         return c.rotate(rot, Image.BICUBIC, expand=True) if rot else c
 
+    def heavy2(self, txt, size, fill):
+        st = self.st; sw = max(2, int(size * 0.1)); off = max(3, int(size * 0.08))
+        a = self.text_img(txt, size, fill, st['ink'], sw, sp=self.px(3)); sh = self.text_img(txt, size, st['ink'], st['ink'], sw, sp=self.px(3))
+        out = Image.new('RGBA', (a.width + off, a.height + off)); out.alpha_composite(sh, (off, off)); out.alpha_composite(a, (0, 0)); return out
+
     def heavy(self, txt, size, accent=False):
         """超粗大字：白字（或強調色）＋深色粗邊＋右下陰影"""
         st = self.st; fill = st['accent'] if accent else st.get('title_color', '#FFFFFF')
@@ -633,10 +638,17 @@ class R:
             lines = hook['text'].split('\n') if '\n' in hook['text'] else chunks(hook['text'], 7)[:2]
             n = max(len(x) for x in lines); size = self.px(min(140, int(940 / max(1, n))))
             em = hook.get('emph', [])
-            ims = []
-            for ln in lines:
-                tcol = st.get('title_color', st['ink'])
-                ims.append(self.text_img(ln, size, tcol, 'same', max(2, int(size * 0.05)), emph=em, hl=st['accent'] if st['accent'] != tcol else st['hl'], sp=self.px(3)))
+            ims = []; fx = st.get('title_fx', 'outline')
+            for j, ln in enumerate(lines):
+                tcol = st.get('title_color', st['ink']); hot = any(e and e in ln for e in em) or (not em and j == len(lines) - 1 and len(lines) > 1)
+                if fx == 'heavy':      # 全部白字粗黑邊＋陰影，重點行黃色
+                    ims.append(self.heavy2(ln, size, '#FFE14D' if hot else '#FFFFFF'))
+                elif fx == 'block' and hot:   # 重點行放在色塊上反白
+                    ims.append(self.block(self.text_img(ln, size, '#FFFFFF' if sum(hexrgb(st['accent'])) < 600 else st['ink'], 'same', max(2, int(size * 0.05)), sp=self.px(3)), st['accent'], self.px(30), self.px(8)))
+                elif fx == 'outline' and hot:   # 重點行：強調色＋深色粗邊＋陰影
+                    ims.append(self.heavy2(ln, size, st['accent'] if st['accent'] != '#FFE14D' else '#FFE14D'))
+                else:
+                    ims.append(self.text_img(ln, size, tcol, 'same', max(2, int(size * 0.05)), sp=self.px(3)))
             parts['title'] = ims
             if hook.get('ribbon'):
                 rb = hook['ribbon']; segs = rb.split('•'); f = self.px(52)
