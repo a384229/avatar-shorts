@@ -369,6 +369,10 @@ class R:
                 a = 1.0 if pmode == 'full' else clamp(lt / 0.25)
                 if a < 1: mf = mf.copy(); mf.putalpha(int(255 * a))
                 scene.alpha_composite(mf)
+        # 中間的內容卡片（人物當配角時，畫面中間固定一張卡，內容一句一句換）
+        if self.st.get('stage') == 'side' and mode is None:
+            hk = self.D.get('hook'); u = hk.get('until', 3.0) if hk else -1
+            if t > u: self.draw_card(scene, t - u)
         # 大頭
         talking = self.raw_env[min(fi, len(self.raw_env) - 1)] > 0.32 and L['start'] <= t <= L['end']
         im = self.face(face, talk=True) if talking and (fi // 3) % 3 != 2 else None
@@ -424,7 +428,7 @@ class R:
             if fade < 1: q.putalpha(q.getchannel('A').point(lambda v: int(v * fade)))
             if center_prop:   # 人物當配角：道具放大擺中間
                 if k == 0: q = q.resize((q.width * 3 // 2, q.height * 3 // 2), Image.BILINEAR)
-                px_, py_ = self.w / 2 + (k - (min(len(props), 3) - 1) / 2) * self.px(330), self.px(640)
+                px_, py_ = self.px((self.CARD[0] + self.CARD[2]) / 2) + (k - (min(len(props), 3) - 1) / 2) * self.px(330), self.px(615)
             elif L.get('prop_pos') or self.lay_name(i) in ('center', 'close'):
                 fx, fyy = PROP_POS.get(poss[k % len(poss)], PROP_POS['right']); px_, py_ = fx * self.w, fyy * self.h
             else:   # 人物換了位置：道具跟著頭的左上／右上
@@ -534,7 +538,7 @@ class R:
 
     LAYOUTS = {'center': (1.12, 0.5, 880), 'left': (0.95, 0.33, 920), 'right': (0.95, 0.6, 920), 'close': (1.3, 0.5, 960),
                'low_left': (0.72, 0.32, 1080), 'low_right': (0.72, 0.6, 1080), 'small': (0.62, 0.5, 1080),
-               'side_l': (0.62, 0.24, 1130), 'side_r': (0.62, 0.66, 1130)}
+               'side_l': (0.62, 0.22, 1180), 'side_r': (0.62, 0.7, 1180)}
     MEDIA_LAY = {'card': (0.6, 0.5, 1130), 'full': (0.42, 0.7, 1170)}
 
     def lay_name(self, i):
@@ -564,7 +568,11 @@ class R:
         if lay in ('center', 'close'): return None
         e = L.get('emph') or []
         if lay in ('side_l', 'side_r') and L.get('banner'): return None   # 有步驟清單卡就不放大字
-        return e[0] if e else None
+        if e: return e[0]
+        if lay in ('side_l', 'side_r') and not L.get('prop'):   # 卡片不能空著：放這句（最多 12 字，分兩行）
+            t = re.sub(r'[，。！？、,.!?「」]', ' ', L['text']).split(); t = max(t, key=len) if t else L['text']
+            return t[:12] if len(t) <= 6 else t[:(len(t[:12]) + 1) // 2] + '\n' + t[(len(t[:12]) + 1) // 2:12]
+        return None
 
     def draw_big(self, scene, i, lt, left):
         txt = self.big_text(i)
@@ -579,22 +587,26 @@ class R:
             if '\n' in txt: lines = txt.split('\n')
             elif side and len(txt) > 3: h = (len(txt) + 1) // 2; lines = [txt[:h], txt[h:]]
             else: lines = chunks(txt, 6)[:2]
-            n = max(len(x) for x in lines); size = self.px(min(170 if stage else 150, int((400 if side else 900) / max(1, n))))
+            n = max(len(x) for x in lines); size = self.px(min(170 if stage else 150, int((400 if side else 760 if stage else 900) / max(1, n)), int(440 / (1.3 * len(lines))) if stage else 999))
             light = sum(hexrgb(st['accent'])) < 600
             imgs = [self.text_img(x, size, st['ink'], 'same', max(1, self.px(3)), sp=self.px(4)) for x in lines[:-1]]
             last = self.text_img(lines[-1], size, st['bg'] if light else st['ink'], 'same', max(1, self.px(3)), sp=self.px(4))
             imgs.append(self.block(last, st['accent']))   # 最後一行：色塊反白
-            if st.get('big_style') == 'heavy':   # 白字粗黑邊＋往右下的陰影（拼貼風）
+            if stage:   # 卡片裡：深色粗字，最後一行強調色粗邊
+                ac = st['accent'] if st['accent'] != '#FFE14D' else '#F26B1D'
+                imgs = [self.text_img(x, size, st['ink'], 'same', max(2, int(size * 0.05)), sp=self.px(3)) for x in lines[:-1]] + [self.heavy2(lines[-1], size, ac)]
+            elif st.get('big_style') == 'heavy':   # 白字粗黑邊＋往右下的陰影（拼貼風）
                 imgs = [self.heavy(x, size, j == len(lines) - 1) for j, x in enumerate(lines)]
             self._txt[k] = imgs
         imgs = self._txt[k]
         cx = {'left': 0.76, 'right': 0.26}.get(lay, 0.5) * self.w
+        if stage: cx = self.px((self.CARD[0] + self.CARD[2]) / 2)
         hb = getattr(self, '_head_box', None)
         if side and hb:   # 放在臉和畫面邊緣中間，不壓到臉
             wmax = max(im.width for im in imgs)
             cx = (hb[1] + self.px(960)) / 2 if lay == 'left' else (self.px(40) + hb[0]) / 2
             cx = min(max(cx, self.px(30) + wmax / 2), self.px(960) - wmax / 2)
-        lh = imgs[0].height * 0.95; cy = (self.px(860) if side else self.px(620) if stage else self.px(330 if lay == 'close' else 520)) - lh * (len(imgs) - 1) / 2
+        lh = imgs[0].height * 0.95; cy = (self.px(860) if side else self.px(615) if stage else self.px(330 if lay == 'close' else 520)) - lh * (len(imgs) - 1) / 2
         out = clamp(left / 0.2)
         for j, im in enumerate(imgs):
             tj = lt - 0.25 - 0.1 * j; a = clamp(tj / 0.25) * out
@@ -607,16 +619,36 @@ class R:
                 d = ImageDraw.Draw(scene); yl = cy + len(imgs) * lh - lh * 0.35; hw = self.px(40) * out3((lt - 0.5) / 0.4)
                 d.line([(cx - hw, yl), (cx + hw, yl)], fill=hexrgb(st['accent']) + (int(255 * a),), width=max(1, self.px(5)))
 
+    CARD = (70, 290, 950, 880)   # 內容卡片範圍（1080 寬的座標），右邊留給平台按鈕
+
+    def draw_card(self, scene, since):
+        st = self.st
+        if 'card_bg' not in self._txt:
+            x0, y0, x1, y1 = [self.px(v) for v in self.CARD]; lw = self.px(7); off = self.px(14)
+            im = Image.new('RGBA', (x1 - x0 + off + lw, y1 - y0 + off + lw)); d = ImageDraw.Draw(im); r = self.px(34); ink = rgba(st['ink'])
+            d.rounded_rectangle([off, off, im.width - 1, im.height - 1], r, fill=ink)
+            d.rounded_rectangle([0, 0, x1 - x0, y1 - y0], r, fill='#FFFFFF', outline=ink, width=lw)
+            title = st.get('card_title') or (self.D.get('hook') or {}).get('text', '').replace('\n', '')
+            if title:
+                tt = self.text_img(title, self.px(46), st['ink'], 'same', self.px(2), sp=self.px(2))
+                im.alpha_composite(tt, ((x1 - x0) // 2 - tt.width // 2, self.px(30)))
+                ac = st['accent'] if st['accent'] != '#FFE14D' else '#F26B1D'
+                d.line([((x1 - x0) // 2 - self.px(40), self.px(30) + tt.height + self.px(8)), ((x1 - x0) // 2 + self.px(40), self.px(30) + tt.height + self.px(8))], fill=ac, width=self.px(6))
+            self._txt['card_bg'] = im
+        im = self._txt['card_bg']; k = back(since / 0.35, 1.4)
+        self.paste_scaled(scene, im, self.px((self.CARD[0] + self.CARD[2]) / 2) + im.width * 0.0, self.px((self.CARD[1] + self.CARD[3]) / 2) + self.px(7), k)
+
     def draw_steps(self, scene, i, lt, left):
         """步驟清單卡：每個有標籤的句子加一行，前面的保留，現在這行亮起來（人物當配角時用）"""
         st = self.st; rows = [(j, l['banner']) for j, l in enumerate(self.lines[:i + 1]) if l.get('banner')]
         k = ('steps', i)
         if k not in self._txt:
-            f = self.px(54); W2 = self.px(880); rh = self.px(104); pad = self.px(28)
+            f = self.px(58); W2 = self.px(820); rh = self.px(118); pad = self.px(10)
             card = Image.new('RGBA', (W2 + self.px(14), pad * 2 + rh * len(rows) + self.px(14))); d = ImageDraw.Draw(card)
             ink = rgba(st['ink']); dark = sum(hexrgb(st['bg'])) < 300
-            d.rounded_rectangle([self.px(12), self.px(12), W2 + self.px(12), card.height - 1], self.px(28), fill=ink)
-            d.rounded_rectangle([0, 0, W2, card.height - self.px(14)], self.px(28), fill='#FFFFFF', outline=ink, width=self.px(6))
+            if not self.st.get('stage') == 'side':
+                d.rounded_rectangle([self.px(12), self.px(12), W2 + self.px(12), card.height - 1], self.px(28), fill=ink)
+                d.rounded_rectangle([0, 0, W2, card.height - self.px(14)], self.px(28), fill='#FFFFFF', outline=ink, width=self.px(6))
             ac = st['accent'] if st['accent'] != '#FFE14D' else '#F26B1D'
             for r, (j, txt) in enumerate(rows):
                 y0 = pad + r * rh; cur = j == i
@@ -630,7 +662,7 @@ class R:
             self._txt[k] = card
         card = self._txt[k]; a = clamp(left / 0.2)
         sc = (back(lt / 0.3, 1.6) if not any(l.get('banner') for l in self.lines[max(0, i - 3):i]) else 1.0)
-        self.paste_scaled(scene, self.fade(card, a) if a < 1 else card, self.w / 2, self.px(430) + card.height / 2, sc)
+        self.paste_scaled(scene, self.fade(card, a) if a < 1 else card, self.px((self.CARD[0] + self.CARD[2]) / 2), self.px(395) + card.height / 2, sc)
 
     def prop_start(self, L):
         hk = self.D.get('hook'); s = L['start']
