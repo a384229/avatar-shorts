@@ -16,8 +16,8 @@
 ## Claude 要做的
 
 ```bash
-# 產生錄音稿：每句的 text（say 是給 AI 配音用的念法，自己錄用不到）
-python -c "import json,sys;D=json.load(open(sys.argv[1],encoding='utf-8'));print('\n'.join(l['text'] for l in D['lines']))" videos/片名/director.json > videos/片名/錄音稿.txt
+# 產生錄音稿（每句的 text；say 是給 AI 配音用的念法，自己錄用不到）
+python scripts/voice.py sheet videos/片名/director.json
 
 # 錄好之後：依停頓切句、對時間
 python scripts/voice.py align videos/片名/director.json --audio videos/片名/錄音.m4a

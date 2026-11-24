@@ -1,4 +1,5 @@
 """旁白：預設「自己錄」（不用 AI 配音）；AI 配音是備案。每句時間自動算好寫回導演表。
+  python voice.py sheet  videos/片名/director.json                           產生 錄音稿.txt（含怎麼錄的說明）
   python voice.py align  videos/片名/director.json --audio 我錄的.m4a       【預設】自己錄整篇 → 依停頓切句對時間
   python voice.py redo   videos/片名/director.json --line 6 --audio 第6句.m4a   只重錄某一句
   python voice.py setup  --provider fish --sample voice/sample.wav            建立聲音（存 voice/voice.json）
@@ -261,6 +262,17 @@ def silent(a):
     save(a.director, D); print(f'✓ 已用每秒 4.6 字估時間，總長 {D["duration"]:.1f} 秒（沒有聲音，只看畫面用）')
 
 
+def sheet(a):
+    """錄音稿：一行一句（自己念用 text，不用 say），加上怎麼錄的說明"""
+    D = load(a.director); n = len(D['lines']); sec = sum(len(l['text']) for l in D['lines']) / 4.6
+    out = [f'錄音稿：{D.get("title", "")}（{n} 句，約 {sec:.0f} 秒）', '',
+           '怎麼錄：手機錄音 App，嘴巴離手機一個拳頭，用平常跟朋友聊天的口氣。',
+           '每句念完停 1 秒；念錯了停 2 秒，從那一句重新念就好，不用整篇重來。', '']
+    out += [f'{i}. {l["text"]}' for i, l in enumerate(D['lines'], 1)]
+    p = os.path.join(os.path.dirname(os.path.abspath(a.director)), '錄音稿.txt')
+    open(p, 'w', encoding='utf-8').write('\n'.join(out) + '\n'); print('\n'.join(out)); print(f'\n✓ 錄音稿 → {p}')
+
+
 if __name__ == '__main__':
     ap = argparse.ArgumentParser(); ap.add_argument('--workdir', default='.', help='工作資料夾（有 voice/ 的那層）')
     sp = ap.add_subparsers(dest='cmd', required=True)
@@ -274,5 +286,6 @@ if __name__ == '__main__':
     p = sp.add_parser('align'); p.add_argument('director'); p.add_argument('--audio', required=True); p.add_argument('--min-pause', type=float, default=0.35)
     p.add_argument('--no-asr', action='store_true', help='不用語音辨識，只看停頓切句'); p.set_defaults(f=align)
     p = sp.add_parser('redo'); p.add_argument('director'); p.add_argument('--line', type=int, required=True); p.add_argument('--audio', required=True); p.set_defaults(f=redo)
+    p = sp.add_parser('sheet'); p.add_argument('director'); p.set_defaults(f=sheet)
     p = sp.add_parser('silent'); p.add_argument('director'); p.set_defaults(f=silent)
     a = ap.parse_args(); a.f(a)

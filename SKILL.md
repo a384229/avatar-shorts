@@ -52,7 +52,7 @@ videos/片名/     每支片：script.txt、director.json、錄音稿.txt、使�
 - **關卡：** 使用者確認導演表（也可以說「直接出片我看了再改」）
 
 ### 4. 錄旁白 → 讀 `references/voice.md`
-- **預設使用者自己錄，不用 AI 配音。** 產生 `錄音稿.txt`，照 voice.md 教他錄（每句停 1 秒，念錯停 2 秒從那句重念）
+- **預設使用者自己錄，不用 AI 配音。** `python scripts/voice.py sheet …/director.json` 產生 `錄音稿.txt`，照 voice.md 教他錄（每句停 1 秒，念錯停 2 秒從那句重念）
 - 錄好：`python scripts/voice.py align videos/片名/director.json --audio 錄音檔`；某句重錄：`voice.py redo … --line N --audio 檔案`
 - 使用者主動說要 AI 配音才用備案（Fish Audio 等，見 voice.md 後半）
 - 還沒錄想先看畫面：`voice.py silent`
