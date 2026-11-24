@@ -31,6 +31,14 @@ BOX = {'soft': (70, 270, 1010, 960), 'swiss': (80, 330, 1000, 975), 'polaroid': 
 FACE_H, FACE_BOTTOM, CAP_Y = 520, 1495, 1240
 
 
+SOFT_CUT = set('了的是要都在把給讓和跟就也還才過著')
+def split_at(t):
+    """找兩行的斷點：不切開英文數字，優先斷在「了的是…」這類虛字後面，最後才從中間切"""
+    n = len(t); ok = [j for j in range(2, n - 1) if not (t[j - 1].isascii() and t[j - 1].isalnum() and t[j].isascii() and t[j].isalnum())]
+    soft = [j for j in ok if t[j - 1] in SOFT_CUT and n * 0.3 <= j <= n * 0.75]
+    return min(soft or ok or [(n + 1) // 2], key=lambda x: abs(x - n / 2))
+
+
 def hexrgb(h):
     if isinstance(h, tuple): return h[:3]
     h = h.lstrip('#'); return tuple(int(h[i:i + 2], 16) for i in (0, 2, 4))
@@ -269,9 +277,8 @@ class Design:
         plain = False
         if not big and not steps:   # 沒有重點字：整句用大字分兩行，不要只放一行小字
             t = strip(L['text']); m = [q.end() for q in re.finditer(r'[，,、：:]', t)]
-            ok = [j for j in range(2, len(t) - 1) if not (t[j - 1].isascii() and t[j - 1].isalnum() and t[j].isascii() and t[j].isalnum())]
-            cut = min(m or ok or [(len(t) + 1) // 2], key=lambda x: abs(x - len(t) / 2))
-            big = (t[:cut].rstrip('，,、：:') + '\n' + t[cut:]) if len(t) > 7 else t; lead = ''; plain = True
+            big = (lambda c: t[:c].rstrip('，,、：:') + '\n' + t[c:])(m and min(m, key=lambda x: abs(x - len(t) / 2)) or split_at(t)) if len(t) > 9 else t
+            lead = ''; plain = True
         return dict(n=n, label=label, lead=strip(lead), big=big, tail=strip(tail), steps=steps, plain=plain,
                     prop=L.get('prop') if plain else None)
 
@@ -367,8 +374,10 @@ class Design:
         col_w = (W - fw - 20 - 70 - 30) if side == 'r' else (960 - (fw - 20) - 30)
         size = 62; f = T['cap_font']; pad = 30
         lines = [c]
+        if self.tw(c, f, size) > col_w - 2 * pad:   # 先縮字（最小 50），還放不下才分兩行
+            size = max(50, self.fit(c, f, size, col_w - 2 * pad))
         if self.tw(c, f, size) > col_w - 2 * pad:
-            h = (len(c) + 1) // 2; lines = [c[:h], c[h:]]
+            h = split_at(c); lines = [c[:h], c[h:]]
             size = min(size, self.fit(max(lines, key=len), f, size, col_w - 2 * pad))
         tw = max(self.tw(s, f, size) for s in lines); lh = int(size * 1.4)
         bw, bh = int(tw + 2 * pad), lh * len(lines) + 24
