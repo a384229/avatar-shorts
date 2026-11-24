@@ -70,6 +70,11 @@ def cmd_new(a):
         ln = guess(t, i, len(lines))
         if parts[i]: ln['part'] = parts[i]
         D['lines'].append(ln)
+    # 版面：人物位置輪流換（中間、左、右、特寫、下方），有強調字的句子把人移到旁邊、空位放大字
+    cyc = ['left', 'center', 'right', 'close', 'low_left', 'center', 'low_right']; k = 0
+    for i, ln in enumerate(D['lines']):
+        if i == 0 or ln.get('banner'): ln['layout'] = 'center'; continue
+        ln['layout'] = cyc[k % len(cyc)]; k += 1
     # 避免連續三句同表情
     for i in range(2, len(D['lines'])):
         if D['lines'][i]['face'] == D['lines'][i - 1]['face'] == D['lines'][i - 2]['face']: D['lines'][i]['face'] = 'smile' if D['lines'][i]['face'] != 'smile' else 'neutral'

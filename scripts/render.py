@@ -11,7 +11,7 @@ from common import W, H, FPS, load, resolve_face, find_face, find_prop, font, ch
 import sfx as SFX
 
 DEFAULT_STYLE = {'bg': '#FFE9BF', 'bg2': '#FFC879', 'accent': '#FF4B2B', 'ink': '#1F1A17', 'hl': '#FFE14D',
-                 'pattern': 'dots', 'sticker': True, 'caption_size': 84, 'head_size': 0.68,
+                 'pattern': 'dots', 'sticker': False, 'caption_size': 84, 'head_size': 0.68,
                  'shape': None, 'shape_color': None, 'frame': False, 'grain': 0, 'glow': True, 'shadow': True,
                  'cap': 'stroke', 'cap_color': 'white', 'cap_bg': None, 'hook_style': 'pop', 'banner_style': 'solid',
                  'motion': 'bouncy', 'label_l': '', 'label_r': ''}
@@ -19,23 +19,23 @@ DEFAULT_STYLE = {'bg': '#FFE9BF', 'bg2': '#FFC879', 'accent': '#FF4B2B', 'ink': 
 THEMES = {
     '活潑': {},   # 原本的暖黃卡通風
     '奶茶極簡': dict(bg='#F4EEE6', bg2='#E9DFD2', accent='#9C7356', ink='#4A3B31', hl='#C79A6E', pattern='none', grain=6,
-                 shape='arch', shape_color='#E4D5C3', sticker=False, glow=False, cap='pill', cap_color='#4A3B31', cap_bg='#FFFFFFD9',
-                 hook_style='elegant', banner_style='outline', motion='soft', head_size=0.74),
+                 sticker=False, glow=False, cap='pill', cap_color='#4A3B31', cap_bg='#FFFFFFD9',
+                 hook_style='elegant', banner_style='outline', motion='soft', head_size=0.84),
     '莫蘭迪綠': dict(bg='#E6EAE3', bg2='#D3DACE', accent='#5F7461', ink='#33403A', hl='#E9F1D8', pattern='none', grain=5,
-                 shape='circle', shape_color='#C5CFBF', sticker=False, glow=False, cap='bar', cap_color='#FFFFFF', cap_bg='#5F7461E6',
-                 hook_style='elegant', banner_style='line', motion='soft', head_size=0.74),
+                 sticker=False, glow=False, cap='bar', cap_color='#FFFFFF', cap_bg='#5F7461E6',
+                 hook_style='elegant', banner_style='line', motion='soft', head_size=0.84),
     '霧粉雜誌': dict(bg='#F6E9E6', bg2='#EED9D5', accent='#A8646E', ink='#3D2C2E', hl='#A8646E', pattern='none', grain=6,
-                 shape='arch', shape_color='#FFFFFF', sticker=False, glow=False, frame=True, cap='plain', cap_color='#3D2C2E',
-                 hook_style='elegant', banner_style='line', motion='soft', head_size=0.72, label_l='DAILY NOTES', label_r='VOL.01'),
+                 sticker=False, glow=False, frame=True, cap='plain', cap_color='#3D2C2E',
+                 hook_style='elegant', banner_style='line', motion='soft', head_size=0.84, label_l='DAILY NOTES', label_r='VOL.01'),
     '黑金質感': dict(bg='#1E1D1B', bg2='#2B2926', accent='#C8A96A', ink='#F3EDE2', hl='#C8A96A', pattern='none', grain=8,
-                 shape='circle', shape_color='#34312C', sticker=False, glow=True, frame=True, cap='plain', cap_color='#F3EDE2',
-                 hook_style='elegant', banner_style='outline', motion='soft', head_size=0.74, label_l='PREMIUM', label_r='NO.01'),
+                 sticker=False, glow=True, frame=True, cap='plain', cap_color='#F3EDE2',
+                 hook_style='elegant', banner_style='outline', motion='soft', head_size=0.84, label_l='PREMIUM', label_r='NO.01'),
     '霧藍清新': dict(bg='#EDF1F4', bg2='#DCE4EA', accent='#3F5D78', ink='#2C3A47', hl='#F2D58A', pattern='grid_fine', grain=4,
-                 shape='circle', shape_color='#FFFFFF', sticker=False, glow=False, cap='pill', cap_color='#2C3A47', cap_bg='#FFFFFFE6',
-                 hook_style='elegant', banner_style='outline', motion='soft', head_size=0.74),
+                 sticker=False, glow=False, cap='pill', cap_color='#2C3A47', cap_bg='#FFFFFFE6',
+                 hook_style='elegant', banner_style='outline', motion='soft', head_size=0.84),
     '燕麥紙感': dict(bg='#EFE7DA', bg2='#E6DBCA', accent='#2F2A25', ink='#2F2A25', hl='#F0C96B', pattern='none', grain=10,
-                 shape='arch', shape_color='#E0D2BC', sticker=False, glow=False, cap='marker', cap_color='#2F2A25',
-                 hook_style='elegant', banner_style='line', motion='soft', head_size=0.74, label_l='NOTE', label_r='01'),
+                 sticker=False, glow=False, cap='marker', cap_color='#2F2A25',
+                 hook_style='elegant', banner_style='line', motion='soft', head_size=0.84, label_l='NOTE', label_r='01'),
 }
 for _k, _v in THEMES.items():
     if _v: _v.setdefault('caption_size', 74)
@@ -212,7 +212,7 @@ class R:
                 if m: d.rectangle([xx - 2, hgt * 0.52, xx + cw + sp + 2, hgt * 0.86], fill=marker)
                 xx += cw + sp
         for c, m in zip(text, marks):
-            col = fill if marker else (hl if m and hl else fill)
+            col = hl if m and hl else fill
             d.text((x, hgt // 2), c, font=f, fill=col, stroke_width=sw, stroke_fill=(col if stroke == 'same' else stroke), anchor='lm'); x += f.getlength(c) + sp
         self._txt[k] = im; return im
 
@@ -368,14 +368,15 @@ class R:
         if cam == 'tilt': rot = 6 * math.sin(lt * math.pi * 1.6) * math.exp(-lt * 0.6)
         if cam == 'slide_l': dx = self.px(700) * (1 - out3(lt / 0.35))
         if cam == 'slide_r': dx = -self.px(700) * (1 - out3(lt / 0.35))
-        LAY = {None: (1.0, 0.5, 850), 'card': (0.6, 0.5, 1130), 'full': (0.42, 0.7, 1170)}   # 素材出現時大頭讓位：(大小, x, y)
-        a0, a1 = LAY[pmode if pmode in LAY else None], LAY[mode if mode in LAY else None]
-        if mode == pmode: a0 = a1
-        ls, lx, ly = [u + (v - u) * mk for u, v in zip(a0, a1)]
+        a0, a1 = self.layout_of(i - 1) if i > 0 else self.layout_of(i), self.layout_of(i)
+        k = out3(lt / (0.45 if soft else 0.32))   # 換位置：平順移過去
+        ls, lx, ly = [u + (v - u) * k for u, v in zip(a0, a1)]
         sc *= ls
         hi = im if abs(sc - 1) < 0.002 else im.resize((int(im.width * sc), int(im.height * sc)), Image.BILINEAR)
         if abs(rot) > 0.3: hi = hi.rotate(rot, Image.BILINEAR, expand=True)
         cx, cy = self.w * lx + dx, self.px(ly) + dy
+        if ls < 1.2:   # 不超出安全區左右（右邊 120 留給平台按鈕）；特寫可以出框
+            hw = hi.width * 0.42; cx = min(max(cx, hw), self.px(960) - hw)
         hk = self.D.get('hook')
         if hk:   # 開場標題在的時候，大頭縮小往下讓位，標題收掉時再放大回來
             u = hk.get('until', 3.0); m = 1 - out3((t - u) / 0.4) if t > u else 1.0
@@ -393,6 +394,7 @@ class R:
         poss = L.get('prop_pos') or ['right', 'left']
         poss = [poss] if isinstance(poss, str) else poss
         p0 = self.prop_start(L)   # 開場標題還在的時候先不放道具，免得擋字，標題收掉才出現
+        if self.big_text(i) and mode is None and not L.get('prop_pos'): props = []   # 有大字就不放道具，畫面才乾淨
         for k, pn in enumerate(props[:3]):
             p = self.prop(pn)
             if not p: continue
@@ -403,8 +405,12 @@ class R:
             ang = (2 if soft else 8) * math.sin(t * 2.4 + k); fy = self.px(8 if soft else 12) * math.sin(t * 2.0 + k)
             q = p.resize((max(1, int(p.width * s)), max(1, int(p.height * s))), Image.BILINEAR).rotate(ang, Image.BILINEAR, expand=True)
             if fade < 1: q.putalpha(q.getchannel('A').point(lambda v: int(v * fade)))
-            fx, fyy = PROP_POS.get(poss[k % len(poss)], PROP_POS['right'])
-            scene.alpha_composite(q, (int(fx * self.w - q.width / 2), int(fyy * self.h + fy - q.height / 2)))
+            if L.get('prop_pos') or self.lay_name(i) in ('center', 'close'):
+                fx, fyy = PROP_POS.get(poss[k % len(poss)], PROP_POS['right']); px_, py_ = fx * self.w, fyy * self.h
+            else:   # 人物換了位置：道具跟著頭的左上／右上
+                side = 1 if (k % 2 == 0) == (cx < self.w / 2) else -1
+                px_ = min(max(cx + side * hi.width * 0.38, self.px(130)), self.px(840)); py_ = cy - hi.height * 0.32 + k * self.px(60)
+            scene.alpha_composite(q, (int(px_ - q.width / 2), int(py_ + fy - q.height / 2)))
         if mode == 'card':     # 素材卡片：從上方彈出
             mc = self.media_frame(i, lt, 'card')
             if mc is not None:
@@ -433,6 +439,8 @@ class R:
         elif False: pass
         # 段落標籤
         if L.get('banner') and not hook_on: self.draw_banner(scene, L['banner'], lt, L['end'] - t)
+        # 大字（人物移到旁邊時，空出來的地方放重點字）
+        if not hook_on and mode is None: self.draw_big(scene, i, lt, L['end'] - t)
         # 字幕
         for (a0, a1, c, emph) in self.cplan:
             if a0 <= t < a1: self.draw_caption(scene, c, emph, t - a0)
@@ -448,7 +456,8 @@ class R:
             img = self.halo(self.text_img(c, size, col, 'same', self.px(1), emph=emph, marker=st['hl'], sp=self.px(2)))
         else:
             hl = st['hl'] if kind == 'bar' else st['accent']
-            img = self.text_img(c, size, col, 'same', self.px(1), emph=emph, hl=hl, sp=self.px(2))
+            mk = None if kind == 'bar' else rgba(st['hl'])[:3] + (110,)
+            img = self.text_img(c, size, col, 'same', self.px(1), emph=emph, hl=hl, sp=self.px(2), marker=mk)
             if kind in ('pill', 'bar'):
                 px_, py_ = (self.px(46), self.px(14)) if kind == 'pill' else (self.px(40), self.px(16))
                 box = Image.new('RGBA', (img.width + px_ * 2, img.height + py_ * 2)); d = ImageDraw.Draw(box)
@@ -496,9 +505,74 @@ class R:
             kk = back((t - 0.08 * j) / 0.28, 2.2) if t < until else k
             self.paste_scaled(scene, img, self.w / 2, y + self.px(60) + j * self.px(150), max(0, kk) * (1 + 0.5 * (1 - clamp(t / 0.2))) if t < until else kk)
 
+    LAYOUTS = {'center': (1.12, 0.5, 880), 'left': (0.95, 0.33, 920), 'right': (0.95, 0.6, 920), 'close': (1.3, 0.5, 960),
+               'low_left': (0.72, 0.32, 1080), 'low_right': (0.72, 0.6, 1080), 'small': (0.62, 0.5, 1080)}
+    MEDIA_LAY = {'card': (0.6, 0.5, 1130), 'full': (0.42, 0.7, 1170)}
+
+    def lay_name(self, i):
+        L = self.lines[i]
+        return 'custom' if isinstance(L.get('head'), dict) else L.get('layout', 'center')
+
+    def layout_of(self, i):
+        """這句人物的 (大小, x 比例, y 像素)：素材優先，其次 head 自訂，其次 layout 版型"""
+        m = self.media_mode(i)
+        if m in self.MEDIA_LAY: return self.MEDIA_LAY[m]
+        L = self.lines[i]; h = L.get('head')
+        if isinstance(h, dict):   # 自訂：x、y 是畫面比例（0～1），size 是大小倍數
+            return (float(h.get('size', 1.0)), float(h.get('x', 0.5)), float(h.get('y', 0.45)) * H)
+        return self.LAYOUTS.get(L.get('layout', 'center'), self.LAYOUTS['center'])
+
+    def big_text(self, i):
+        L = self.lines[i]; b = L.get('big')
+        if b is False or b == '': return None
+        if b: return b
+        if self.lay_name(i) in ('center', 'close'): return None
+        e = L.get('emph') or []
+        return e[0] if e else None
+
+    def draw_big(self, scene, i, lt, left):
+        txt = self.big_text(i)
+        if not txt: return
+        lay = self.lay_name(i); st = self.st
+        if lay == 'custom':
+            hx = self.layout_of(i)[1]; lay = 'left' if hx < 0.45 else 'right' if hx > 0.55 else 'small'
+        side = lay in ('left', 'right')
+        k = ('big', txt, side)
+        if k not in self._txt:
+            if '\n' in txt: lines = txt.split('\n')
+            elif side and len(txt) > 3: h = (len(txt) + 1) // 2; lines = [txt[:h], txt[h:]]
+            else: lines = chunks(txt, 6)[:2]
+            n = max(len(x) for x in lines); size = self.px(min(150, int((400 if side else 860) / max(1, n))))
+            light = sum(hexrgb(st['accent'])) < 600
+            imgs = [self.text_img(x, size, st['ink'], 'same', max(1, self.px(3)), sp=self.px(4)) for x in lines[:-1]]
+            last = self.text_img(lines[-1], size, st['bg'] if light else st['ink'], 'same', max(1, self.px(3)), sp=self.px(4))
+            imgs.append(self.block(last, st['accent']))   # 最後一行：色塊反白
+            self._txt[k] = imgs
+        imgs = self._txt[k]
+        cx = {'left': 0.76, 'right': 0.26}.get(lay, 0.5) * self.w
+        lh = imgs[0].height * 0.95; cy = (self.px(860) if side else self.px(330 if lay == 'close' else 520)) - lh * (len(imgs) - 1) / 2
+        out = clamp(left / 0.2)
+        for j, im in enumerate(imgs):
+            tj = lt - 0.25 - 0.1 * j; a = clamp(tj / 0.25) * out
+            if a <= 0: continue
+            y = cy + j * lh + self.px(24) * (1 - out3(tj / 0.35))
+            scene.alpha_composite(self.fade(im, a), (int(cx - im.width / 2), int(y - im.height / 2)))
+        if side:   # 字下面一條短線
+            a = clamp((lt - 0.5) / 0.3) * out
+            if a > 0:
+                d = ImageDraw.Draw(scene); yl = cy + len(imgs) * lh - lh * 0.35; hw = self.px(40) * out3((lt - 0.5) / 0.4)
+                d.line([(cx - hw, yl), (cx + hw, yl)], fill=hexrgb(st['accent']) + (int(255 * a),), width=max(1, self.px(5)))
+
     def prop_start(self, L):
         hk = self.D.get('hook'); s = L['start']
         return max(s, hk.get('until', 3.0) + 0.15) if hk else s
+
+    def block(self, img, color, padx=None, pady=None):
+        """字放在色塊上（重點字用，比較吸睛）"""
+        padx = padx or self.px(26); pady = pady or self.px(4)
+        b = Image.new('RGBA', (img.width + padx * 2, img.height + pady * 2)); d = ImageDraw.Draw(b)
+        d.rounded_rectangle([0, pady + img.height * 0.08, b.width - 1, b.height - 1 - img.height * 0.04], radius=self.px(14), fill=color)
+        b.alpha_composite(img, (padx, pady)); return b
 
     def fade(self, img, a):
         if a >= 1: return img
@@ -521,16 +595,15 @@ class R:
             scene.alpha_composite(im, (int(self.w / 2 - im.width / 2), int(y - self.px(70) - im.height / 2 + self.px(16) * (1 - out3(t / 0.35)))))
         for j, ln in enumerate(lines):
             last = j == len(lines) - 1 and len(lines) > 1
-            img = self.text_img(ln, self.px(hook.get('size', 108)), st['accent'] if last else st['ink'], 'same', self.px(2),
-                                emph=hook.get('emph', []), hl=st['accent'], sp=self.px(4))
+            light = sum(hexrgb(st['accent'])) < 600
+            if last:
+                img = self.block(self.text_img(ln, self.px(hook.get('size', 124)), st['bg'] if light else st['ink'], 'same', self.px(3), sp=self.px(4)), st['accent'], self.px(30), self.px(6))
+            else:
+                img = self.text_img(ln, self.px(hook.get('size', 124)), st['ink'], 'same', self.px(3), emph=hook.get('emph', []), hl=st['accent'], sp=self.px(4))
             tj = t - 0.12 - 0.1 * j; a = clamp(tj / 0.3) * out
             if a <= 0: continue
-            yy = y + self.px(40) + j * self.px(138) + self.px(26) * (1 - out3(tj / 0.4))
+            yy = y + self.px(40) + j * self.px(160) + self.px(26) * (1 - out3(tj / 0.4))
             scene.alpha_composite(self.fade(img, a), (int(self.w / 2 - img.width / 2), int(yy - img.height / 2)))
-        a = clamp((t - 0.4) / 0.3) * out   # 標題下的短線
-        if a > 0:
-            d = ImageDraw.Draw(scene); ly = y + self.px(40) + len(lines) * self.px(138) - self.px(40); hw = self.px(50) * out3((t - 0.4) / 0.4)
-            d.line([(self.w / 2 - hw, ly), (self.w / 2 + hw, ly)], fill=hexrgb(st['accent']) + (int(255 * a),), width=max(1, self.px(4)))
 
     def draw_banner(self, scene, text, lt, left):
         bs = self.st.get('banner_style', 'solid')
@@ -584,6 +657,7 @@ class R:
             if self.trans_of(i): ev.append((max(0, s - 0.05), 'whoosh_long' if self.trans_of(i) == 'zoom' else 'r_whoosh', .3))
             props = l.get('prop') or []
             ps = self.prop_start(l)
+            if self.big_text(i) and not self.media_mode(i) and not l.get('prop_pos'): props = []
             if ps < l['end']:
                 for k, _ in enumerate([props] if isinstance(props, str) else props): ev.append((ps + 0.12 + 0.18 * k, 'bloop', .24))
         return ev

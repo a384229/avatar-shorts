@@ -18,7 +18,8 @@
 | 「這幾個字要變黃」 | emph |
 | 「顏色換成藍色系」「換個風格」「要更高級」 | style.theme 換風格（見 director.md 風格表），或只改 accent |
 | 「字幕底框不要」「字幕要有底」 | style.cap：plain／pill／bar／marker |
-| 「頭後面那個色塊不要」 | style.shape 設 null |
+| 「人放左邊／右邊」「放大一點」「這句特寫」 | 那句 layout（left／right／close／low_left…）或 head 自訂 x、y、size |
+| 「字不夠吸睛」「這裡放大字」 | 那句加 big（2～6 字重點） |
 | 「念太快」「念太慢」 | 自己錄：請他重錄；AI 配音：voice.py say --speed 0.9～1.15 |
 | 「這個字念錯」 | 自己錄：重錄那句（redo）；AI 配音：那句加 say（念法）重跑 say |
 | 「句子中間停太久」 | 那句 pause 改小 |
