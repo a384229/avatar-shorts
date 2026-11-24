@@ -1,0 +1,5 @@
+__pycache__/
+*.pyc
+voice/keys.env
+*.env
+.DS_Store

@@ -1,0 +1,92 @@
+{
+  "title": "存錢示範",
+  "faces": "../../faces",
+  "style": {
+    "pattern": "dots"
+  },
+  "hook": {
+    "text": "90%的人\n都存錯錢",
+    "sub": "上班族必看",
+    "until": 2.6,
+    "emph": [
+      "90%"
+    ]
+  },
+  "lines": [
+    {
+      "text": "你是不是每個月都存不到錢？",
+      "face": "surprised",
+      "cam": "punch",
+      "prop": "money",
+      "emph": [
+        "存不到錢"
+      ]
+    },
+    {
+      "text": "其實不是你賺太少",
+      "face": "think",
+      "cam": "push",
+      "prop": "question"
+    },
+    {
+      "text": "是你存錢的順序錯了！",
+      "face": "shocked",
+      "cam": "shake",
+      "prop": "warning",
+      "emph": [
+        "順序錯了"
+      ]
+    },
+    {
+      "text": "第一招，薪水一進來就先存",
+      "face": "point",
+      "cam": "slide_l",
+      "banner": "第1招 先存再花",
+      "prop": "calendar",
+      "emph": [
+        "先存"
+      ]
+    },
+    {
+      "text": "剩下的錢才拿來花",
+      "face": "smile",
+      "cam": "still"
+    },
+    {
+      "text": "第二招，把存錢帳戶分開",
+      "face": "wink",
+      "cam": "zoom_face",
+      "banner": "第2招 帳戶分開",
+      "prop": [
+        "lock",
+        "key"
+      ],
+      "prop_pos": [
+        "right",
+        "left"
+      ]
+    },
+    {
+      "text": "看不到，就不會亂花",
+      "face": "laugh",
+      "cam": "bounce",
+      "prop": "eyes"
+    },
+    {
+      "text": "照做三個月，你會嚇一跳",
+      "face": "proud",
+      "cam": "push",
+      "prop": "chart_up",
+      "emph": [
+        "三個月"
+      ]
+    },
+    {
+      "text": "想學更多，記得追蹤我",
+      "face": "thumbsup",
+      "cam": "punch",
+      "prop": "bell",
+      "banner": "追蹤看更多"
+    }
+  ]
+}
