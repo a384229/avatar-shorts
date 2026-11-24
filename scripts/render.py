@@ -3,7 +3,7 @@
   python render.py videos/片名/director.json --preview    540×960 快速預覽 → preview.mp4（改稿時用）
   python render.py videos/片名/director.json --stills 0.3,5,12   只輸出這幾秒的畫面 → check/still_*.png
 需要：Python 3.9+、Pillow、numpy、ffmpeg。"""
-import argparse, math, os, subprocess, sys, random
+import argparse, math, os, re, subprocess, sys, random
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageOps
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -39,10 +39,10 @@ THEMES = {
     # 拼貼風：粗字、反白色塊、斜紋底、深色字幕框、粗框貼紙卡片（參考 IG 爆款教學帳號）
     '拼貼': dict(bg='#F3EBDD', bg2='#EBDFCB', accent='#F26B1D', ink='#1E2A47', hl='#F26B1D', ribbon='#2449B8', ribbon_hl='#FFC83D',
                pattern='stripes_soft', grain=0, sticker=False, glow=False, cap='dark', hook_style='collage', banner_style='bubble',
-               big_style='heavy', motion='bouncy', head_size=0.84, caption_size=78, doodle=True),
+               big_style='heavy', motion='bouncy', head_size=0.84, caption_size=78, doodle=True, stage='side'),
     '拼貼橘': dict(bg='#F47B20', bg2='#EF6E12', accent='#FFE14D', ink='#1E1E1E', hl='#FFE14D', ribbon='#1E1E1E', ribbon_hl='#FFE14D',
                 pattern='stripes_soft', grain=0, sticker=False, glow=False, cap='dark', hook_style='collage', banner_style='bubble',
-                big_style='heavy', motion='bouncy', head_size=0.84, caption_size=78, doodle=True, title_color='#FFFFFF'),
+                big_style='heavy', motion='bouncy', head_size=0.84, caption_size=78, doodle=True, title_color='#FFFFFF', stage='side'),
 }
 for _k, _v in THEMES.items():
     if _v: _v.setdefault('caption_size', 74)
@@ -395,7 +395,7 @@ class R:
         if hk:   # 開場標題在的時候，大頭縮小往下讓位，標題收掉時再放大回來
             u = hk.get('until', 3.0); m = 1 - out3((t - u) / 0.4) if t > u else 1.0
             if m > 0:
-                col = self.st.get('hook_style') == 'collage'; f = 1 - (0.3 if col else 0.2) * m; hi = hi.resize((max(1, int(hi.width * f)), max(1, int(hi.height * f))), Image.BILINEAR); cy += self.px(230 if col else 130) * m
+                col = self.st.get('hook_style') == 'collage'; f = 1 - (0.3 if col else 0.2) * m; hi = hi.resize((max(1, int(hi.width * f)), max(1, int(hi.height * f))), Image.BILINEAR); cy += self.px(0 if self.st.get('stage') == 'side' else 230 if col else 130) * m
         if self.st.get('shape') and mode != 'full':   # 頭後面的色塊（跟著頭的位置和大小）
             shp = self.shape_img(hi.width // 6 * 6, hi.height // 6 * 6)
             yb = cy + hi.height / 2 - shp.height   # 底部對齊頭的下緣
@@ -410,6 +410,8 @@ class R:
         poss = [poss] if isinstance(poss, str) else poss
         p0 = self.prop_start(L)   # 開場標題還在的時候先不放道具，免得擋字，標題收掉才出現
         if self.big_text(i) and mode is None and not L.get('prop_pos'): props = []   # 有大字就不放道具，畫面才乾淨
+        center_prop = self.st.get('stage') == 'side' and mode is None and not L.get('banner') and not L.get('prop_pos') and props
+        if self.st.get('stage') == 'side' and L.get('banner') and mode is None: props = []
         for k, pn in enumerate(props[:3]):
             p = self.prop(pn)
             if not p: continue
@@ -420,7 +422,10 @@ class R:
             ang = (2 if soft else 8) * math.sin(t * 2.4 + k); fy = self.px(8 if soft else 12) * math.sin(t * 2.0 + k)
             q = p.resize((max(1, int(p.width * s)), max(1, int(p.height * s))), Image.BILINEAR).rotate(ang, Image.BILINEAR, expand=True)
             if fade < 1: q.putalpha(q.getchannel('A').point(lambda v: int(v * fade)))
-            if L.get('prop_pos') or self.lay_name(i) in ('center', 'close'):
+            if center_prop:   # 人物當配角：道具放大擺中間
+                if k == 0: q = q.resize((q.width * 3 // 2, q.height * 3 // 2), Image.BILINEAR)
+                px_, py_ = self.w / 2 + (k - (min(len(props), 3) - 1) / 2) * self.px(330), self.px(640)
+            elif L.get('prop_pos') or self.lay_name(i) in ('center', 'close'):
                 fx, fyy = PROP_POS.get(poss[k % len(poss)], PROP_POS['right']); px_, py_ = fx * self.w, fyy * self.h
             else:   # 人物換了位置：道具跟著頭的左上／右上
                 side = 1 if (k % 2 == 0) == (cx < self.w / 2) else -1
@@ -453,7 +458,9 @@ class R:
             self.draw_hook(scene, hook, t)
         elif False: pass
         # 段落標籤
-        if L.get('banner') and not hook_on: self.draw_banner(scene, L['banner'], lt, L['end'] - t)
+        if L.get('banner') and not hook_on:
+            if self.st.get('stage') == 'side' and mode is None: self.draw_steps(scene, i, lt, L['end'] - t)
+            else: self.draw_banner(scene, L['banner'], lt, L['end'] - t)
         # 大字（人物移到旁邊時，空出來的地方放重點字）
         if not hook_on and mode is None: self.draw_big(scene, i, lt, L['end'] - t)
         # 字幕
@@ -526,12 +533,18 @@ class R:
             self.paste_scaled(scene, img, self.w / 2, y + self.px(60) + j * self.px(150), max(0, kk) * (1 + 0.5 * (1 - clamp(t / 0.2))) if t < until else kk)
 
     LAYOUTS = {'center': (1.12, 0.5, 880), 'left': (0.95, 0.33, 920), 'right': (0.95, 0.6, 920), 'close': (1.3, 0.5, 960),
-               'low_left': (0.72, 0.32, 1080), 'low_right': (0.72, 0.6, 1080), 'small': (0.62, 0.5, 1080)}
+               'low_left': (0.72, 0.32, 1080), 'low_right': (0.72, 0.6, 1080), 'small': (0.62, 0.5, 1080),
+               'side_l': (0.62, 0.24, 1130), 'side_r': (0.62, 0.66, 1130)}
     MEDIA_LAY = {'card': (0.6, 0.5, 1130), 'full': (0.42, 0.7, 1170)}
 
     def lay_name(self, i):
         L = self.lines[i]
-        return 'custom' if isinstance(L.get('head'), dict) else L.get('layout', 'center')
+        if isinstance(L.get('head'), dict): return 'custom'
+        if L.get('layout'): return L['layout']
+        if self.st.get('stage') == 'side':   # 人物當配角：放左下／右下，每個新段落換邊
+            k = sum(1 for l in self.lines[1:i + 1] if l.get('banner') or l.get('part') not in (None, self.lines[self.lines.index(l) - 1].get('part')))
+            return 'side_r' if k % 2 == 0 else 'side_l'
+        return 'center'
 
     def layout_of(self, i):
         """這句人物的 (大小, x 比例, y 像素)：素材優先，其次 head 自訂，其次 layout 版型"""
@@ -540,14 +553,17 @@ class R:
         L = self.lines[i]; h = L.get('head')
         if isinstance(h, dict):   # 自訂：x、y 是畫面比例（0～1），size 是大小倍數
             return (float(h.get('size', 1.0)), float(h.get('x', 0.5)), float(h.get('y', 0.45)) * H)
-        return self.LAYOUTS.get(L.get('layout', 'center'), self.LAYOUTS['center'])
+        return self.LAYOUTS.get(self.lay_name(i), self.LAYOUTS['center'])
 
     def big_text(self, i):
         L = self.lines[i]; b = L.get('big')
         if b is False or b == '': return None
+        if self.st.get('stage') == 'side' and L.get('banner') and not self.media_mode(i): return None   # 這句是步驟清單卡
         if b: return b
-        if self.lay_name(i) in ('center', 'close'): return None
+        lay = self.lay_name(i)
+        if lay in ('center', 'close'): return None
         e = L.get('emph') or []
+        if lay in ('side_l', 'side_r') and L.get('banner'): return None   # 有步驟清單卡就不放大字
         return e[0] if e else None
 
     def draw_big(self, scene, i, lt, left):
@@ -556,13 +572,14 @@ class R:
         lay = self.lay_name(i); st = self.st
         if lay == 'custom':
             hx = self.layout_of(i)[1]; lay = 'left' if hx < 0.45 else 'right' if hx > 0.55 else 'small'
+        stage = lay in ('side_l', 'side_r')
         side = lay in ('left', 'right')
-        k = ('big', txt, side)
+        k = ('big', txt, side, stage)
         if k not in self._txt:
             if '\n' in txt: lines = txt.split('\n')
             elif side and len(txt) > 3: h = (len(txt) + 1) // 2; lines = [txt[:h], txt[h:]]
             else: lines = chunks(txt, 6)[:2]
-            n = max(len(x) for x in lines); size = self.px(min(150, int((400 if side else 860) / max(1, n))))
+            n = max(len(x) for x in lines); size = self.px(min(170 if stage else 150, int((400 if side else 900) / max(1, n))))
             light = sum(hexrgb(st['accent'])) < 600
             imgs = [self.text_img(x, size, st['ink'], 'same', max(1, self.px(3)), sp=self.px(4)) for x in lines[:-1]]
             last = self.text_img(lines[-1], size, st['bg'] if light else st['ink'], 'same', max(1, self.px(3)), sp=self.px(4))
@@ -577,7 +594,7 @@ class R:
             wmax = max(im.width for im in imgs)
             cx = (hb[1] + self.px(960)) / 2 if lay == 'left' else (self.px(40) + hb[0]) / 2
             cx = min(max(cx, self.px(30) + wmax / 2), self.px(960) - wmax / 2)
-        lh = imgs[0].height * 0.95; cy = (self.px(860) if side else self.px(330 if lay == 'close' else 520)) - lh * (len(imgs) - 1) / 2
+        lh = imgs[0].height * 0.95; cy = (self.px(860) if side else self.px(620) if stage else self.px(330 if lay == 'close' else 520)) - lh * (len(imgs) - 1) / 2
         out = clamp(left / 0.2)
         for j, im in enumerate(imgs):
             tj = lt - 0.25 - 0.1 * j; a = clamp(tj / 0.25) * out
@@ -589,6 +606,31 @@ class R:
             if a > 0:
                 d = ImageDraw.Draw(scene); yl = cy + len(imgs) * lh - lh * 0.35; hw = self.px(40) * out3((lt - 0.5) / 0.4)
                 d.line([(cx - hw, yl), (cx + hw, yl)], fill=hexrgb(st['accent']) + (int(255 * a),), width=max(1, self.px(5)))
+
+    def draw_steps(self, scene, i, lt, left):
+        """步驟清單卡：每個有標籤的句子加一行，前面的保留，現在這行亮起來（人物當配角時用）"""
+        st = self.st; rows = [(j, l['banner']) for j, l in enumerate(self.lines[:i + 1]) if l.get('banner')]
+        k = ('steps', i)
+        if k not in self._txt:
+            f = self.px(54); W2 = self.px(880); rh = self.px(104); pad = self.px(28)
+            card = Image.new('RGBA', (W2 + self.px(14), pad * 2 + rh * len(rows) + self.px(14))); d = ImageDraw.Draw(card)
+            ink = rgba(st['ink']); dark = sum(hexrgb(st['bg'])) < 300
+            d.rounded_rectangle([self.px(12), self.px(12), W2 + self.px(12), card.height - 1], self.px(28), fill=ink)
+            d.rounded_rectangle([0, 0, W2, card.height - self.px(14)], self.px(28), fill='#FFFFFF', outline=ink, width=self.px(6))
+            ac = st['accent'] if st['accent'] != '#FFE14D' else '#F26B1D'
+            for r, (j, txt) in enumerate(rows):
+                y0 = pad + r * rh; cur = j == i
+                if cur: d.rounded_rectangle([self.px(18), y0 + self.px(6), W2 - self.px(18), y0 + rh - self.px(6)], self.px(20), fill=rgba(ac)[:3] + (40,), outline=ac, width=self.px(4))
+                cx0 = self.px(70); cy0 = y0 + rh // 2; R = self.px(32)
+                d.ellipse([cx0 - R, cy0 - R, cx0 + R, cy0 + R], fill=ac if cur else rgba(st['ink'])[:3] + (60,))
+                d.text((cx0, cy0), str(r + 1), font=ImageFont.truetype(self.fB, self.px(40)), fill='#FFFFFF', anchor='mm', stroke_width=1, stroke_fill='#FFFFFF')
+                tt = re.sub(r'^第\s*[0-9一二三四五六七八九十]+\s*[步招個點]\s*', '', txt) or txt
+                im = self.text_img(tt, f, st['ink'] if cur else '#8A8580', 'same', self.px(2) if cur else 0, sp=self.px(2))
+                card.alpha_composite(im, (self.px(124), int(cy0 - im.height / 2)))
+            self._txt[k] = card
+        card = self._txt[k]; a = clamp(left / 0.2)
+        sc = (back(lt / 0.3, 1.6) if not any(l.get('banner') for l in self.lines[max(0, i - 3):i]) else 1.0)
+        self.paste_scaled(scene, self.fade(card, a) if a < 1 else card, self.w / 2, self.px(430) + card.height / 2, sc)
 
     def prop_start(self, L):
         hk = self.D.get('hook'); s = L['start']
