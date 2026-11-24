@@ -51,7 +51,7 @@
 | style | theme 風格模板（見下表，選了就不用自己配色；其他欄位可再覆蓋）、背景 bg→bg2 漸層、accent 標題／標籤色、hl 字幕強調色、pattern（dots 點點、stripes 斜線、grid 格子、none）、head_size 大頭佔畫面寬度（預設 0.68）、caption_size 字幕大小（預設 84）、sticker 白邊貼紙感（預設 true） |
 | bgm | 配樂檔（講話時自動壓低）；bgm_db 配樂音量（預設 -20，想更小聲 -24）。沒有配樂就用內建產生器：`python scripts/music.py make 輕快 --director …/director.json`（輕快、可愛、科技、溫馨、熱血，程式合成、可商用） |
 | style.stage | side＝人物當配角（拼貼風預設）：人物放左下／右下、每段換邊，中間放大字（emph 或 big）、道具放大、步驟句（有 banner）變成步驟清單卡一行一行累積；center＝人物在中間當主角 |
-| style.title_fx | 拼貼風開場標題配色：outline 重點字粗邊（預設）、heavy 全白字粗黑邊、block 重點字色塊反白 |
+| style.title_fx | 拼貼風開場標題配色：heavy 全白字粗黑邊＋重點字黃（預設）、outline 重點字粗邊、block 重點字色塊反白 |
 | style.footer | 底部品牌小字，例「初雪｜美業短影音」 |
 | sfx_gain | 音效整體音量（預設 0.8） |
 | caption_max | 字幕一行最多幾字（預設 9） |

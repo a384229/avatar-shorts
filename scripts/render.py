@@ -39,10 +39,10 @@ THEMES = {
     # 拼貼風：粗字、反白色塊、斜紋底、深色字幕框、粗框貼紙卡片（參考 IG 爆款教學帳號）
     '拼貼': dict(bg='#F3EBDD', bg2='#EBDFCB', accent='#F26B1D', ink='#1E2A47', hl='#F26B1D', ribbon='#2449B8', ribbon_hl='#FFC83D',
                pattern='stripes_soft', grain=0, sticker=False, glow=False, cap='dark', hook_style='collage', banner_style='bubble',
-               big_style='heavy', motion='bouncy', head_size=0.84, caption_size=78, doodle=True, stage='side'),
+               big_style='heavy', motion='bouncy', head_size=0.84, caption_size=78, doodle=True, stage='side', title_fx='heavy'),
     '拼貼橘': dict(bg='#F47B20', bg2='#EF6E12', accent='#FFE14D', ink='#1E1E1E', hl='#FFE14D', ribbon='#1E1E1E', ribbon_hl='#FFE14D',
                 pattern='stripes_soft', grain=0, sticker=False, glow=False, cap='dark', hook_style='collage', banner_style='bubble',
-                big_style='heavy', motion='bouncy', head_size=0.84, caption_size=78, doodle=True, title_color='#FFFFFF', stage='side'),
+                big_style='heavy', motion='bouncy', head_size=0.84, caption_size=78, doodle=True, title_color='#FFFFFF', stage='side', title_fx='heavy'),
 }
 for _k, _v in THEMES.items():
     if _v: _v.setdefault('caption_size', 74)
