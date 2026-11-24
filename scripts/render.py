@@ -2,6 +2,7 @@
   python render.py videos/片名/director.json              完整 1080×1920、30fps → final.mp4
   python render.py videos/片名/director.json --preview    540×960 快速預覽 → preview.mp4（改稿時用）
   python render.py videos/片名/director.json --stills 0.3,5,12   只輸出這幾秒的畫面 → check/still_*.png
+  python render.py videos/片名/director.json --cover            只輸出封面 → cover.jpg（出成品時也會自動做）
 需要：Python 3.9+、Pillow、numpy、ffmpeg。"""
 import argparse, math, os, re, subprocess, sys, random
 import numpy as np
@@ -870,6 +871,15 @@ class R:
         return ev
 
     # ---------- 輸出 ----------
+    def cover(self, path):
+        """封面圖 1080×1920（上傳 IG／抖音時選「從相簿選封面」用）"""
+        if self.S != 1: return None
+        if self.dz: im = self.dz.cover_image()
+        else:
+            hk = self.D.get('hook'); t = (hk.get('until', 3.0) - 0.3) if hk else 0.5
+            self.cplan = []; im = self.frame(int(t * FPS)); self.cplan = self.caption_plan()
+        im.save(path, quality=93); return path
+
     def render(self, out, stills=None):
         self.cplan = self.caption_plan()
         if stills:
@@ -906,14 +916,23 @@ class R:
         run(['ffmpeg', '-y', '-v', 'error'] + ins + ['-filter_complex', ';'.join(fl), '-map', '0:v', '-map', '[a]', '-c:v', 'copy',
              '-c:a', 'aac', '-b:a', '192k', '-ar', '48000', '-t', f'{self.dur:.3f}', '-movflags', '+faststart', out])
         os.remove(tmpv)
-        print(f'✓ 出片完成：{out}（{self.dur:.1f} 秒，{self.w}×{self.h}）')
+        cv = self.cover(os.path.join(self.base, 'cover.jpg'))
+        if cv:   # 封面也塞進影片當縮圖
+            tmp = out + '.tmp.mp4'
+            r = subprocess.run(['ffmpeg', '-y', '-v', 'error', '-i', out, '-i', cv, '-map', '0', '-map', '1', '-c', 'copy', '-c:v:1', 'mjpeg',
+                                '-disposition:v:1', 'attached_pic', '-movflags', '+faststart', tmp])
+            if r.returncode == 0: os.replace(tmp, out)
+            elif os.path.exists(tmp): os.remove(tmp)
+        print(f'✓ 出片完成：{out}（{self.dur:.1f} 秒，{self.w}×{self.h}）' + (f'\n✓ 封面：{cv}' if cv else ''))
 
 
 if __name__ == '__main__':
     ap = argparse.ArgumentParser(); ap.add_argument('director'); ap.add_argument('--preview', action='store_true'); ap.add_argument('--out')
     ap.add_argument('--stills', help='逗號分隔秒數，只輸出靜態畫面')
+    ap.add_argument('--cover', action='store_true', help='只輸出封面 cover.jpg')
     a = ap.parse_args()
     r = R(a.director, 0.5 if a.preview else 1.0)
     base = os.path.dirname(os.path.abspath(a.director))
+    if a.cover: print('✓ 封面：' + r.cover(os.path.join(base, 'cover.jpg'))); sys.exit()
     out = a.out or os.path.join(base, 'preview.mp4' if a.preview else 'final.mp4')
     r.render(out, [float(x) for x in a.stills.split(',')] if a.stills else None)

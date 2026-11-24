@@ -405,6 +405,14 @@ class Design:
             self._c[key] = im
         return self._c[key]
 
+    def cover_image(self):
+        """封面：背景＋開場標題全部顯示＋人物（第一句的表情），不放字幕"""
+        img = self.bg.copy()
+        for lay, _ in self.cover_layers(): img.alpha_composite(lay)
+        im = self.face(self.lines[0].get('face', 'neutral'), False); side = self.r.st.get('cover_side', 'r')
+        img.alpha_composite(im, (int(self.face_x(side, im.width)), int(FACE_BOTTOM - im.height)))
+        return img.convert('RGB')
+
     # ---------- 一格 ----------
     @staticmethod
     def fade(img, a, dy=0):

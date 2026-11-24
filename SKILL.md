@@ -1,6 +1,6 @@
 ---
 name: avatar-anim-video-zh
-description: 大頭照動畫短影音：用自己的大頭照表情庫＋自己錄的旁白，從 IP 定位、廣告思維腳本（HOOK／內容／CTA、起承轉合）、導演表到自動出設計感直式短片（柔霧、瑞士、拍立得、撕紙等風格；換表情、道具、音效、字幕不壓臉）並自查，看完說改哪裡就改。使用者說「大頭照動畫」「表情庫」「聲音庫」「表情包短影音」「大頭貼短影音」時使用。
+description: 大頭照動畫短影音：用自己的大頭照表情庫＋自己錄的旁白，照「抓內容 → 做腳本 → 給產品照 → 給錄音檔（mp3／mp4）→ 含封面成片」五步，自動出設計感直式短片（柔霧、瑞士、拍立得、撕紙等風格；換表情、道具、音效、字幕不壓臉）並自查，看完說改哪裡就改。使用者說「大頭照動畫」「表情庫」「聲音庫」「表情包短影音」「大頭貼短影音」時使用。
 ---
 
 # 大頭照動畫短影音
@@ -24,49 +24,50 @@ videos/片名/     每支片：script.txt、director.json、錄音稿.txt、使�
 
 下面的 `scripts/` 指這個 skill 資料夾裡的 scripts（用完整路徑執行，工作目錄＝工作資料夾）。
 
-## 流程（六步，每步有關卡：使用者說 OK 才往下）
+## 流程（五步，照順序，一次只問一件事）
 
-先跑 `python scripts/setup.py .` 檢查環境（Python、Pillow、numpy、ffmpeg）並建資料夾。看 `ip.md`、`faces/` 在不在，已經做過的步驟跳過，直接問「這次要拍什麼主題？」。
+先跑 `python scripts/setup.py .` 檢查環境（Python、Pillow、numpy、ffmpeg）並建資料夾。`ip.md`、`faces/` 已經有就沿用，直接從第 1 步問「這支想拍什麼？」。
 
-### 1. IP 定位＋腳本 → 讀 `references/ip-script.md`＋`references/script-library.md`
-- 第一次：聊天問 7 題做 `ip.md`
-- 每支片：先寫「需要、想要、自己的目的」三句，從腳本庫挑模板（T01～T13），照 **HOOK → 內容 → CTA** 和 **起承轉合** 寫（小學生聽得懂、一句 8～20 字、20～45 秒），給 3 個不同型的 HOOK 讓他挑
-- script.txt 用【起】【承】【轉】【合】分段，存 `videos/片名/script.txt`
-- 腳本確認後，**建議 2～3 個素材**（第幾句、拍什麼或截什麼圖、怎麼拍），請使用者放進 `素材/`；沒有也可以先出片
-- **關卡：** 使用者確認腳本
-
-### 2. 表情庫 → 讀 `references/face-prompts.md`
-- 給他 ChatGPT 提示詞（先做角色，再做 4×4 表情總表），他下載圖片回來
-- `python scripts/faces.py split 總表.png faces/` 切 16 張、去背；或單張 `faces.py cutout faces/ --same-box`
-- `python scripts/faces.py check faces/`，**用 Read 看 `faces/_總覽.jpg`**，確認表情對、大小一致、沒有白邊
-- 還沒做表情庫想先試：`faces.py demo faces/` 用內建示範角色
-- **關卡：** 使用者看總覽圖說 OK
-
-### 3. 導演表 → 讀 `references/director.md`
-- 第一次先問風格（給他看 references/director.md 的風格表）：推薦設計感系列——柔霧奶茶、柔霧藍、柔霧綠、柔霧莓、瑞士極簡、瑞士拼貼、拍立得、撕紙（人物在角落、字不壓臉）；另有拼貼、拼貼橘、奶茶極簡等舊款和活潑卡通風。選好記在 `ip.md` 的「風格」，之後每支沿用
-- `python scripts/direct.py new videos/片名 --script videos/片名/script.txt --hook "開場大字" --sub "身分標籤" --theme 柔霧奶茶` 產生初稿（設計感系列可在 hook 加 en 英文副標）
-- **Claude 逐句檢查、修改**表情／道具／運鏡／標籤／強調字（初稿只是關鍵字猜的），照 director.md 的「排表情原則」
-- 使用者有素材（截圖、照片、影片）：放 `素材/`，那句加 `media`（card 卡片／full 全畫面）
-- 配樂：問使用者要不要音樂；沒有自己的就 `python scripts/music.py make 輕快 --director …`（輕快、可愛、科技、溫馨、熱血）
-- `python scripts/direct.py lint …/director.json` 沒有 ✗
-- `python scripts/direct.py show …/director.json` → 把導演表（表格）給使用者看
-- **關卡：** 使用者確認導演表（也可以說「直接出片我看了再改」）
-
-### 4. 錄旁白 → 讀 `references/voice.md`
-- **預設使用者自己錄，不用 AI 配音。** `python scripts/voice.py sheet …/director.json` 產生 `錄音稿.txt`，照 voice.md 教他錄（每句停 1 秒，念錯停 2 秒從那句重念）
-- 錄好：`python scripts/voice.py align videos/片名/director.json --audio 錄音檔`；某句重錄：`voice.py redo … --line N --audio 檔案`
-- 使用者主動說要 AI 配音才用備案（Fish Audio 等，見 voice.md 後半）
-- 還沒錄想先看畫面：`voice.py silent`
-
-### 5. 自動出片＋自查
-```bash
-python scripts/render.py videos/片名/director.json --preview   # 540×960 預覽（快 4 倍）
-python scripts/render.py videos/片名/director.json             # 1080×1920 成品 final.mp4
-python scripts/check.py  videos/片名/director.json             # 自查
 ```
-- 自查有 ✗ 先自己修好重出，**用 Read 看 `check/總覽.jpg`**（每句一格、紅色＝平台介面會蓋住的區域）：表情對不對、道具有沒有擋臉擋字、字幕有沒有進紅區
-- 第一次出片先給 preview；**請使用者確認每句聲音和字幕對得上**（Claude 聽不到），滿意再出 1080
-- 交片時告訴他：影片路徑、長度、自查結果一句話
+1 抓內容 → 2 做腳本（確認）→ 3 請他給產品照／素材（第一次也做表情庫）→ 4 收錄音檔（mp3、mp4 都可以）→ 5 含封面成片 → 說改哪裡就改
+```
+
+### 1. 抓他想拍的內容 → 讀 `references/ip-script.md`
+- 先問「這支想拍什麼？」，再一題一題補到寫得出三句：**誰會看**（觀眾、他們的卡點）、**看完得到什麼**、**看完要他做哪一個動作**（追蹤／留言／收藏／私訊…）
+- 問有沒有要帶的**產品或服務**（名稱、是什麼、適合誰）；食品、保健品不寫功效（抗老、逆齡、治療…）
+- 第一次用：順便把答案整理成 `ip.md`（我是誰、對誰說、說話口氣、風格），之後每支沿用；風格沒選就給他看 references/director.md 的風格表，推薦設計感系列（柔霧奶茶最適合美業／生活）
+
+### 2. 做腳本 → 讀 `references/script-library.md`
+- 先寫「需要、想要、自己的目的」三句，挑模板（T01～T13），照 **HOOK → 內容 → CTA** 和 **起承轉合** 寫（小學生聽得懂、一句 8～20 字、20～45 秒），給 3 個不同型的 HOOK 讓他挑
+- script.txt 用【起】【承】【轉】【合】分段，存 `videos/片名/script.txt`；照腳本庫的「交給使用者確認的格式」給他看
+- **關卡：** 使用者確認腳本
+- 確認後 Claude 自己做導演表（不用給使用者看表格，讀 `references/director.md`）：
+  `python scripts/direct.py new videos/片名 --script videos/片名/script.txt --hook "開場大字" --sub "身分標籤 • EP01" --theme 柔霧奶茶`，
+  再逐句修表情／大字（big）／步驟標籤（banner）／道具，照「排表情原則」；`direct.py lint` 沒有 ✗
+- 接著 `python scripts/voice.py sheet videos/片名/director.json` 做 `錄音稿.txt`，跟第 3 步一起交給他
+
+### 3. 請他提供產品照和素材（＋第一次做表情庫）
+- 照腳本建議 **2～3 個素材**：放第幾句、拍什麼或截什麼圖、怎麼拍（直式、自然光、背景乾淨）；最重要是**產品照**
+- 收到就放 `素材/`，那句導演表加 `media`（card＝放在中間內容區，照片會自動裁成卡片大小）；沒有也可以先出片，之後補再重出
+- **第一次用、還沒有表情庫** → 讀 `references/face-prompts.md`：給 ChatGPT 提示詞做 4×4 表情總表 → `python scripts/faces.py split 總表.png faces/` → `faces.py check faces/`，**用 Read 看 `faces/_總覽.jpg`** 給他確認。想先試：`faces.py demo faces/` 用示範角色
+- 產品照上若印有功效字樣（例如英文 anti-aging），提醒他自己決定要不要換一張
+
+### 4. 收錄音檔 → 讀 `references/voice.md`
+- 請他照 `錄音稿.txt` 用手機錄整篇：每句停 1 秒，念錯停 2 秒從那句重念。**mp3、m4a、wav、mp4（手機錄影也行）都可以**，影片檔會自動只取聲音
+- `python scripts/voice.py align videos/片名/director.json --audio 錄音檔`（本機語音辨識對句）；某句重錄：`voice.py redo … --line N --audio 檔案`
+- 先檢查音量：整段沒聲音（例如 -60dB 以下）請他重傳
+- 預設不用 AI 配音；他主動要才用備案（voice.md 後半）
+
+### 5. 含封面成片＋自查
+```bash
+python scripts/render.py videos/片名/director.json             # 1080×1920 成品 final.mp4，同時做封面 cover.jpg（也塞進影片當縮圖）
+python scripts/check.py  videos/片名/director.json             # 自查
+python scripts/render.py videos/片名/director.json --cover     # 只重做封面
+```
+- 配樂：問要不要音樂；沒有自己的就 `python scripts/music.py make 輕快 --director …`（輕快、可愛、科技、溫馨、熱血）
+- 自查有 ✗ 先自己修好重出，**用 Read 看 `check/總覽.jpg` 和 `cover.jpg`**：表情對不對、字有沒有壓到臉、有沒有進紅區（平台介面會蓋住）
+- 交片：成片＋封面一起給，說長度和自查結果一句話；請他確認**聲音和字幕對得上**（Claude 聽不到）。上傳時封面選「從相簿選」用 cover.jpg
+- 改稿時可以先出 `--preview`（540×960，快 4 倍）
 
 ### 6. 使用者說改哪裡 → 讀 `references/revise.md`
 - 改 `director.json` → 改到台詞就請他重錄那句（`voice.py redo`）→ render → check
