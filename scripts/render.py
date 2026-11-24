@@ -14,7 +14,7 @@ DEFAULT_STYLE = {'bg': '#FFE9BF', 'bg2': '#FFC879', 'accent': '#FF4B2B', 'ink': 
                  'pattern': 'dots', 'sticker': False, 'caption_size': 84, 'head_size': 0.68,
                  'shape': None, 'shape_color': None, 'frame': False, 'grain': 0, 'glow': True, 'shadow': True,
                  'cap': 'stroke', 'cap_color': 'white', 'cap_bg': None, 'hook_style': 'pop', 'banner_style': 'solid',
-                 'motion': 'bouncy', 'label_l': '', 'label_r': ''}
+                 'motion': 'bouncy', 'label_l': '', 'label_r': '', 'talk': False}   # talk：講話時切張嘴圖（預設關，只換表情）
 # 風格模板：style.theme 選一個，其他 style 欄位可再覆蓋。高級 IG 風＝淡色、留白、細線、柔陰影、不加粗描邊、動作輕。
 THEMES = {
     '活潑': {},   # 原本的暖黃卡通風
@@ -383,7 +383,7 @@ class R:
             hk = self.D.get('hook'); u = hk.get('until', 3.0) if hk else -1
             if t > u: self.draw_card(scene, t - u)
         # 大頭
-        talking = self.raw_env[min(fi, len(self.raw_env) - 1)] > 0.32 and L['start'] <= t <= L['end']
+        talking = self.st.get('talk') and self.raw_env[min(fi, len(self.raw_env) - 1)] > 0.32 and L['start'] <= t <= L['end']
         im = self.face(face, talk=True) if talking and (fi // 3) % 3 != 2 else None
         im = im or self.face(face)
         sc = 1.0

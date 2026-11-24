@@ -53,7 +53,7 @@ python scripts/faces.py split 下載的圖.png faces/
 | 檔名 | 中文 | 什麼時候用 |
 |---|---|---|
 | neutral.png | 平常 | 一般說明 ★必備 |
-| neutral_talk.png | 平常（張嘴） | 講話時自動切換，做出對嘴感 |
+| neutral_talk.png | 平常（張嘴） | 選用：style.talk 設 true 才會在講話時切換做對嘴（預設關，只換表情） |
 | smile.png | 微笑 | 友善、輕鬆 ★必備 |
 | smile_talk.png | 微笑（張嘴） | 同上 |
 | laugh.png | 大笑 | 好笑、成功 |

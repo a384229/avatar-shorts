@@ -451,7 +451,7 @@ class Design:
                     tj = since - dl; a = clamp(tj / 0.3)
                     if a > 0: scene.alpha_composite(self.fade(lay, a), (0, int(22 * (1 - out3(tj / 0.4)))))
         # 人物（每個段落換邊，平順移過去）
-        talking = r.raw_env[min(fi, len(r.raw_env) - 1)] > 0.32 and L['start'] <= t <= L['end']
+        talking = r.st.get('talk') and r.raw_env[min(fi, len(r.raw_env) - 1)] > 0.32 and L['start'] <= t <= L['end']
         fname = L.get('face', 'neutral')
         im = self.face(fname, True) if talking and (fi // 3) % 3 != 2 else None
         im = im or self.face(fname, False)
