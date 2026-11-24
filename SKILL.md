@@ -1,11 +1,11 @@
 ---
 name: avatar-anim-video-zh
-description: 大頭照動畫短影音：用自己的大頭照表情庫＋自己錄的旁白（AI 配音可選），從 IP 定位、寫腳本、導演表到自動出直式短片（換表情、道具、運鏡、音效、字幕）並自查，看完說改哪裡就改。使用者說「大頭照動畫」「表情庫」「聲音庫」「表情包短影音」「大頭貼短影音」時使用。
+description: 大頭照動畫短影音：用自己的大頭照表情庫＋自己錄的旁白，從 IP 定位、廣告思維腳本（HOOK／內容／CTA、起承轉合）、導演表到自動出高級質感 IG 風直式短片（換表情、道具、運鏡、音效、圓體字幕）並自查，看完說改哪裡就改。使用者說「大頭照動畫」「表情庫」「聲音庫」「表情包短影音」「大頭貼短影音」時使用。
 ---
 
 # 大頭照動畫短影音
 
-一個卡通版的「你」當主角：講到哪句換哪個表情，旁邊跳出道具，鏡頭推拉震動，配上你自己錄的旁白、音效和大字幕。直式 1080×1920、30fps，繁體中文。
+一個大頭照版的「你」當主角：講到哪句換哪個表情，旁邊跳出道具，鏡頭推拉，配上你自己錄的旁白、音效和字幕。預設高級質感 IG 風（6 款可選，另有活潑卡通風），字體固定圓體。直式 1080×1920、30fps，繁體中文。
 
 **對使用者說話：** 一般人、不懂程式也看得懂。不要講欄位名、程式名，說「表情」「道具」「鏡頭」。一次只問一件事。
 
@@ -28,9 +28,10 @@ videos/片名/     每支片：script.txt、director.json、錄音稿.txt、使�
 
 先跑 `python scripts/setup.py .` 檢查環境（Python、Pillow、numpy、ffmpeg）並建資料夾。看 `ip.md`、`faces/` 在不在，已經做過的步驟跳過，直接問「這次要拍什麼主題？」。
 
-### 1. IP 定位＋腳本 → 讀 `references/ip-script.md`
+### 1. IP 定位＋腳本 → 讀 `references/ip-script.md`＋`references/script-library.md`
 - 第一次：聊天問 7 題做 `ip.md`
-- 每支片：寫腳本（小學生聽得懂、一句 8～20 字、20～45 秒），給 3 個開頭讓他挑，存 `videos/片名/script.txt`
+- 每支片：先寫「需要、想要、自己的目的」三句，從腳本庫挑模板（T01～T13），照 **HOOK → 內容 → CTA** 和 **起承轉合** 寫（小學生聽得懂、一句 8～20 字、20～45 秒），給 3 個不同型的 HOOK 讓他挑
+- script.txt 用【起】【承】【轉】【合】分段，存 `videos/片名/script.txt`
 - **關卡：** 使用者確認腳本
 
 ### 2. 表情庫 → 讀 `references/face-prompts.md`
@@ -41,7 +42,8 @@ videos/片名/     每支片：script.txt、director.json、錄音稿.txt、使�
 - **關卡：** 使用者看總覽圖說 OK
 
 ### 3. 導演表 → 讀 `references/director.md`
-- `python scripts/direct.py new videos/片名 --script videos/片名/script.txt --hook "開場大字" --sub "身分標籤"` 產生初稿
+- 第一次先問風格（給他看 references/director.md 的風格表）：奶茶極簡、莫蘭迪綠、霧粉雜誌、黑金質感、霧藍清新、燕麥紙感（高級 IG 風），或活潑（卡通暖黃）。選好記在 `ip.md` 的「風格」，之後每支沿用
+- `python scripts/direct.py new videos/片名 --script videos/片名/script.txt --hook "開場大字" --sub "身分標籤" --theme 奶茶極簡` 產生初稿
 - **Claude 逐句檢查、修改**表情／道具／運鏡／標籤／強調字（初稿只是關鍵字猜的），照 director.md 的「排表情原則」
 - 使用者有素材（截圖、照片、影片）：放 `素材/`，那句加 `media`（card 卡片／full 全畫面）
 - 配樂：問使用者要不要音樂；沒有自己的就 `python scripts/music.py make 輕快 --director …`（輕快、可愛、科技、溫馨、熱血）
@@ -73,6 +75,8 @@ python scripts/check.py  videos/片名/director.json             # 自查
 - 直式 1080×1920、30fps、H.264＋AAC、音量 -14 LUFS（各平台通用）
 - 安全區：上 250px、下 450px（y>1470）、右 120px 不放字和道具；字幕在 y≈1325、一行 ≤9 字、照語意斷句
 - 開場 0.5 秒內出大字＋表情，前 3 秒靜音也看得懂
+- 腳本一定有 HOOK＋內容＋CTA、起承轉合四段；CTA 只有一個動作；不編造數字、案例、期限
+- 字體固定圓體（粉圓 Huninn），不要換別的字
 - 每句換表情，同表情不連續超過 2 句
 - 只用使用者本人的聲音和照片；配樂要可商用
 
@@ -81,5 +85,5 @@ Python 3.9+、Pillow、numpy、ffmpeg（`setup.py` 會檢查）。自己錄旁�
 
 ## 檔案
 - `scripts/`：setup.py 環境、faces.py 表情庫、voice.py 旁白（自己錄對時間／AI 配音備案）、direct.py 導演表、render.py 出片、check.py 自查、music.py 內建配樂、asr_align.py 錄音對句（本機語音辨識）、sfx.py 音效合成、common.py 共用
-- `assets/`：思源黑體（OFL）、68 個道具圖（Noto Emoji，Apache-2.0）、示範角色 demo_faces/
+- `assets/`：粉圓圓體 Huninn（OFL，全片固定用這個字）、68 個道具圖（Noto Emoji，Apache-2.0）、示範角色 demo_faces/
 - `examples/demo/`：示範腳本與導演表

@@ -16,7 +16,9 @@
 | 「頭太大／太小」 | style.head_size（預設 0.68，可 0.6～0.85） |
 | 「開頭標題改成…」「標題停久一點」 | hook.text／hook.until |
 | 「這幾個字要變黃」 | emph |
-| 「顏色換成藍色系」 | style（見 director.md 配色範例） |
+| 「顏色換成藍色系」「換個風格」「要更高級」 | style.theme 換風格（見 director.md 風格表），或只改 accent |
+| 「字幕底框不要」「字幕要有底」 | style.cap：plain／pill／bar／marker |
+| 「頭後面那個色塊不要」 | style.shape 設 null |
 | 「念太快」「念太慢」 | 自己錄：請他重錄；AI 配音：voice.py say --speed 0.9～1.15 |
 | 「這個字念錯」 | 自己錄：重錄那句（redo）；AI 配音：那句加 say（念法）重跑 say |
 | 「句子中間停太久」 | 那句 pause 改小 |

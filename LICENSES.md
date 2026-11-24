@@ -2,7 +2,7 @@
 
 | 內容 | 來源 | 授權 |
 |---|---|---|
-| assets/fonts/NotoSansTC-*.otf | Google Noto Sans TC（思源黑體） | SIL Open Font License 1.1，可商用 |
+| assets/fonts/Huninn-Regular.ttf | justfont 粉圓（Huninn，圓體） | SIL Open Font License 1.1，可商用（授權全文 assets/fonts/OFL-Huninn.txt） |
 | assets/props/*.png | Google Noto Color Emoji 圖檔 | Apache License 2.0，可商用 |
 | assets/demo_faces/*.png | 本 skill 用程式畫的示範角色 | 隨 skill 自由使用 |
 | scripts/sfx.py 音效 | 程式即時合成，沒有外部音檔 | 隨 skill 自由使用 |

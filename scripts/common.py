@@ -41,7 +41,9 @@ SFX = ['pop', 'bloop', 'ding', 'ding_hi', 'ding_top', 'boing', 'sparkle', 'whoos
 
 
 def font(kind='black'):
-    name = {'black': 'NotoSansTC-Black.otf', 'bold': 'NotoSansTC-Bold.otf'}[kind]
+    """全片固定用圓體（粉圓 Huninn，OFL 可商用）。只有一種粗細，要粗一點時程式用同色描邊加粗。
+    工作資料夾放 fonts/Huninn-Regular.ttf 可覆蓋。"""
+    name = 'Huninn-Regular.ttf'
     for d in [os.path.join(os.getcwd(), 'fonts'), os.path.join(ASSETS, 'fonts')]:
         p = os.path.join(d, name)
         if os.path.exists(p): return p

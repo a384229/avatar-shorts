@@ -32,6 +32,8 @@ PROP_RULES = [
     (r'快|馬上|立刻', 'lightning'), (r'找|搜尋', 'magnifier'), (r'愛|喜歡', 'heart'), (r'成功|冠軍|第一名', 'trophy'), (r'[？?]', 'question'),
 ]
 PZH = {k: v.split()[0] for k, v in json.load(open(os.path.join(ASSETS, 'props', 'props.json'), encoding='utf-8')).items()}
+PART = re.compile(r'^[【\[（(]?(起|承|轉|合)[】\]）)][：:\s]*')
+CTA = re.compile(r'追蹤|留言|收藏|存起來|私訊|連結|報名|分享|按讚|訂閱|點進|預約|下一集|找我')
 NUM = re.compile(r'第[一二三四五六七八九十0-9]+[招個點步]')
 
 
@@ -54,12 +56,20 @@ def guess(text, i, n):
 def cmd_new(a):
     os.makedirs(a.dir, exist_ok=True)
     raw = open(a.script, encoding='utf-8').read() if a.script else sys.stdin.read()
-    lines = [l.strip(' \t-•*0123456789.、') for l in raw.splitlines()]
-    lines = [l for l in lines if l and not l.startswith('#')]
-    D = {'title': a.title or os.path.basename(os.path.normpath(a.dir)), 'faces': '../../faces', 'style': {},
+    lines, parts, part = [], [], None
+    for l in raw.splitlines():   # 腳本可以用【起】【承】【轉】【合】分段（單獨一行，或寫在句子前面）
+        l = l.strip()
+        m = PART.match(l)
+        if m: part = m.group(1); l = l[m.end():].strip()
+        l = l.strip(' \t-•*0123456789.、')
+        if l and not l.startswith('#'): lines.append(l); parts.append(part)
+    D = {'title': a.title or os.path.basename(os.path.normpath(a.dir)), 'faces': '../../faces', 'style': {'theme': a.theme} if a.theme else {},
          'hook': {'text': a.hook or chunks(lines[0], 8)[0], 'until': 2.6}, 'lines': []}
     if a.sub: D['hook']['sub'] = a.sub
-    for i, t in enumerate(lines): D['lines'].append(guess(t, i, len(lines)))
+    for i, t in enumerate(lines):
+        ln = guess(t, i, len(lines))
+        if parts[i]: ln['part'] = parts[i]
+        D['lines'].append(ln)
     # 避免連續三句同表情
     for i in range(2, len(D['lines'])):
         if D['lines'][i]['face'] == D['lines'][i - 1]['face'] == D['lines'][i - 2]['face']: D['lines'][i]['face'] = 'smile' if D['lines'][i]['face'] != 'smile' else 'neutral'
@@ -67,12 +77,12 @@ def cmd_new(a):
 
 
 def show(path):
-    D = load(path); rows = ['| # | 秒數 | 台詞（字幕） | 表情 | 道具 | 運鏡 | 音效 | 標籤 |', '|---|---|---|---|---|---|---|---|']
+    D = load(path); rows = ['| # | 段落 | 秒數 | 台詞（字幕） | 表情 | 道具 | 運鏡 | 音效 | 標籤 |', '|---|---|---|---|---|---|---|---|---|']
     for i, l in enumerate(D['lines'], 1):
         tm = f'{l["start"]:.1f}–{l["end"]:.1f}' if 'start' in l else '－'
         pr = l.get('prop') or []; pr = [pr] if isinstance(pr, str) else pr; pr = '、'.join(PZH.get(x, x) for x in pr)
         sf = l.get('sfx') or '自動'; sf = '、'.join(sf) if isinstance(sf, list) else sf
-        rows.append(f'| {i} | {tm} | {l["text"]} | {ZH.get(l.get("face", "neutral"), l.get("face"))} | {pr} | {CAMS.get(l.get("cam", "still"), l.get("cam"))} | {sf} | {l.get("banner", "")} |')
+        rows.append(f'| {i} | {l.get("part", "")} | {tm} | {l["text"]} | {ZH.get(l.get("face", "neutral"), l.get("face"))} | {pr} | {CAMS.get(l.get("cam", "still"), l.get("cam"))} | {sf} | {l.get("banner", "")} |')
     h = D.get('hook') or {}
     md = f'# 導演表：{D.get("title", "")}\n\n開場大字：**{h.get("text", "（無）")}**' + (f'（小標：{h["sub"]}）' if h.get('sub') else '') + \
          f'，顯示到 {h.get("until", 3)} 秒\n\n' + '\n'.join(rows) + '\n\n要改哪裡直接說，例如「第 3 句表情換生氣」「第 5 句加錢的道具」「開場標題改成…」。\n'
@@ -108,6 +118,12 @@ def lint(path):
     for i in range(2, len(faces)):
         if faces[i] == faces[i - 1] == faces[i - 2]: warns.append(f'第{i - 1}～{i + 1}句 連續三句同表情')
     if len(set(faces)) < min(5, len(faces)): warns.append(f'整支只用了 {len(set(faces))} 種表情，建議至少 5 種')
+    ps = [l.get('part') for l in D['lines'] if l.get('part')]
+    if ps:
+        miss = [p for p in '起承轉合' if p not in ps]
+        if miss: warns.append('起承轉合少了「' + '、'.join(miss) + '」段')
+        if [p for p in ps] != sorted(ps, key='起承轉合'.index): warns.append('起承轉合的順序亂了（要 起→承→轉→合）')
+    if D['lines'] and not any(CTA.search(l['text']) for l in D['lines'][-2:]): warns.append('結尾兩句沒有 CTA（只要一個動作：追蹤／留言／收藏／私訊…，並說為什麼）')
     if D['lines'] and D['lines'][0].get('cam', 'still') == 'still': warns.append('第 1 句運鏡是不動，開頭建議 punch 或 shake')
     if D.get('duration') and not 15 <= D['duration'] <= 90: warns.append(f'總長 {D["duration"]:.0f} 秒，短影音建議 20～60 秒')
     for e in errs: print('✗ ' + e)
@@ -118,7 +134,7 @@ def lint(path):
 
 if __name__ == '__main__':
     ap = argparse.ArgumentParser(); sp = ap.add_subparsers(dest='cmd', required=True)
-    p = sp.add_parser('new'); p.add_argument('dir'); p.add_argument('--script'); p.add_argument('--hook'); p.add_argument('--sub'); p.add_argument('--title')
+    p = sp.add_parser('new'); p.add_argument('dir'); p.add_argument('--script'); p.add_argument('--hook'); p.add_argument('--sub'); p.add_argument('--title'); p.add_argument('--theme', help='風格：活潑、奶茶極簡、莫蘭迪綠、霧粉雜誌、黑金質感、霧藍清新、燕麥紙感')
     p.set_defaults(f=cmd_new)
     p = sp.add_parser('show'); p.add_argument('director'); p.set_defaults(f=lambda a: show(a.director))
     p = sp.add_parser('lint'); p.add_argument('director'); p.set_defaults(f=lambda a: sys.exit(1 if lint(a.director)[0] else 0))

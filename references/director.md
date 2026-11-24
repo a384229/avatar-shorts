@@ -8,7 +8,7 @@
 {
   "title": "存錢順序錯了",
   "faces": "../../faces",
-  "style": {"bg": "#FFE9BF", "bg2": "#FFC879", "accent": "#FF4B2B", "hl": "#FFE14D", "pattern": "dots"},
+  "style": {"theme": "奶茶極簡"},
   "hook": {"text": "90%的人\n都存錯錢", "sub": "上班族必看", "until": 2.6, "emph": ["90%"]},
   "bgm": null,
   "lines": [
@@ -45,13 +45,34 @@
 | 欄位 | 說明 |
 |---|---|
 | hook | 開場大字：text（`\n` 換行，最多 2 行、每行 ≤8 字）、sub 小標（身分標籤）、until 顯示到幾秒（2～3）、emph 紅字 |
-| style | 背景 bg→bg2 漸層、accent 標題／標籤色、hl 字幕強調色、pattern（dots 點點、stripes 斜線、grid 格子、none）、head_size 大頭佔畫面寬度（預設 0.68）、caption_size 字幕大小（預設 84）、sticker 白邊貼紙感（預設 true） |
+| style | theme 風格模板（見下表，選了就不用自己配色；其他欄位可再覆蓋）、背景 bg→bg2 漸層、accent 標題／標籤色、hl 字幕強調色、pattern（dots 點點、stripes 斜線、grid 格子、none）、head_size 大頭佔畫面寬度（預設 0.68）、caption_size 字幕大小（預設 84）、sticker 白邊貼紙感（預設 true） |
 | bgm | 配樂檔（講話時自動壓低）；bgm_db 配樂音量（預設 -20，想更小聲 -24）。沒有配樂就用內建產生器：`python scripts/music.py make 輕快 --director …/director.json`（輕快、可愛、科技、溫馨、熱血，程式合成、可商用） |
 | sfx_gain | 音效整體音量（預設 0.8） |
 | caption_max | 字幕一行最多幾字（預設 9） |
 | transition | 段落轉場：auto（預設，縮放穿越／百葉窗輪流）、zoom、blinds、wipe、flash、none（整支都不要） |
 
-## 配色範例（style）
+## 風格模板（style.theme）
+
+字體全部固定圓體（粉圓 Huninn），只換配色和版面。
+
+| 風格 | 感覺 | 頭後面 | 字幕 | 標籤 | 適合 |
+|---|---|---|---|---|---|
+| 奶茶極簡 | 奶茶色、溫柔 | 拱門 | 白色圓角底 | 細框圓角 | 生活、理財、女性向 |
+| 莫蘭迪綠 | 灰綠、安靜 | 圓形 | 綠色字幕條 | 細線＋字 | 療癒、健康、知識 |
+| 霧粉雜誌 | 霧粉、雜誌感 | 白色拱門 | 無底（柔光墊底） | 細線＋字 | 美妝、穿搭、個人品牌 |
+| 黑金質感 | 深色、精品感 | 深色圓形 | 象牙白字 | 金色細框 | 高單價服務、商業、顧問 |
+| 霧藍清新 | 淡藍、乾淨 | 白色圓形 | 白色圓角底 | 細框圓角 | 科技、教學、工具 |
+| 燕麥紙感 | 紙質、手作 | 拱門 | 螢光筆畫重點 | 細線＋字 | 筆記、讀書、手作 |
+| 活潑 | 暖黃卡通、彈跳 | 無（白邊貼紙） | 白字黑粗邊 | 紅色實心 | 搞笑、兒童、輕鬆 |
+
+高級 IG 風（前 6 款）動作比較輕：字幕淡入、換表情和道具不大彈跳、開場標題淡入。運鏡還是照每句的 cam；想更有質感就多用 still／push／pull，少用 shake。
+emoji 道具比較卡通，高級風建議一支片 2～4 個就好，或改放自己的去背圖（props/）。
+
+可再覆蓋的欄位：shape（arch 拱門／circle 圓形／不寫＝沒有）、shape_color、frame（細線外框 true/false）、label_l／label_r（外框角落英文小字）、grain（紙感顆粒 0～10）、cap（pill 圓角底／bar 字幕條／plain 無底／marker 螢光筆／stroke 粗邊）、cap_color、cap_bg（可帶透明度 #RRGGBBAA）、banner_style（outline／line／solid）、hook_style（elegant／pop）、motion（soft／bouncy）。
+
+## 配色範例（自己配色時用）
+
+使用者有品牌色：選一個最接近的風格，再把 accent 換成品牌色。
 
 | 名稱 | bg | bg2 | accent | hl |
 |---|---|---|---|---|
