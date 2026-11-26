@@ -56,7 +56,7 @@ videos/片名/     每支片：script.txt、director.json、錄音稿.txt、使�
 
 ### 4. 收錄音檔 → 讀 `references/voice.md`
 - 請他照 `錄音稿.txt` 用手機錄整篇：每句停 1 秒，念錯停 2 秒從那句重念。**mp3、m4a、wav、mp4（手機錄影也行）都可以**，影片檔會自動只取聲音
-- `python scripts/voice.py align videos/片名/director.json --audio 錄音檔`（本機語音辨識對句）；某句重錄：`voice.py redo … --line N --audio 檔案`
+- `python scripts/voice.py align videos/片名/director.json --audio 錄音檔`（本機語音辨識對句），**會自動去卡頓**：句中停太久縮短、念錯重念和結巴只留完整那次、單獨的「嗯、呃」拿掉，輸出會列出每句處理了什麼（原始錄音留在 `audio/line_XX_raw.wav`；不要處理加 `--raw`）；某句重錄：`voice.py redo … --line N --audio 檔案`
 - 先檢查音量：整段沒聲音（例如 -60dB 以下）請他重傳
 - 預設不用 AI 配音；他主動要才用備案（voice.md 後半）
 

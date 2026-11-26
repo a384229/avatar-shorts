@@ -8,7 +8,7 @@ def say(c, m, fix=''):
     print(('✓ ' if c else '✗ ') + m + ('' if c else f'\n    → {fix}'))
     ok &= bool(c)
 say(sys.version_info >= (3, 9), f'Python {sys.version.split()[0]}', '請安裝 Python 3.9 以上（python.org）')
-for mod, pkg in [('PIL', 'pillow'), ('numpy', 'numpy')]:
+for mod, pkg in [('PIL', 'pillow'), ('numpy', 'numpy'), ('fontTools', 'fonttools')]:
     try: __import__(mod); say(True, f'套件 {pkg}')
     except ImportError:
         print(f'  安裝 {pkg}…'); r = subprocess.run([sys.executable, '-m', 'pip', 'install', '-q', pkg]); say(r.returncode == 0, f'套件 {pkg}', f'手動執行：{sys.executable} -m pip install {pkg}')

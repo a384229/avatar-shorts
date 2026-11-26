@@ -36,11 +36,19 @@ FACE_H, FACE_BOTTOM, CAP_Y = 520, 1495, 1240
 
 
 SOFT_CUT = set('了的是要都在把給讓和跟就也還才過著')
+NO_START = set('，。、！？；：,.!?;:）」』】》〉…～—')
+NO_END = set('（「『【《〈')
 def split_at(t):
     """找兩行的斷點：不切開英文數字，優先斷在「了的是…」這類虛字後面，最後才從中間切"""
     n = len(t); ok = [j for j in range(2, n - 1) if not (t[j - 1].isascii() and t[j - 1].isalnum() and t[j].isascii() and t[j].isalnum())]
-    soft = [j for j in ok if t[j - 1] in SOFT_CUT and n * 0.3 <= j <= n * 0.75]
+    ok = [j for j in ok if t[j] not in NO_START and t[j - 1] not in NO_END] or ok   # 標點不放行首、開括號不放行尾
+    soft = [j for j in ok if (t[j - 1] in SOFT_CUT or t[j - 1] in NO_START) and n * 0.3 <= j <= n * 0.75]
     return min(soft or ok or [(n + 1) // 2], key=lambda x: abs(x - n / 2))
+
+
+# 字型裡都沒有的符號換成這些（值是空字串＝直接拿掉）
+GLYPH_SUB = {'✓': '√', '✔': '√', '☑': '√', '✅': '√', '✗': '×', '✘': '×', '❌': '×', '★': '★', '☆': '☆', '♥': '', '❤': '', '❤️': '',
+             '⭐': '★', '👉': '→', '➡': '→', '▶': '→', '▸': '›', '●': '•', '◆': '•', '■': '•', '\ufe0f': '', '\u200d': ''}
 
 
 def hexrgb(h):
@@ -54,7 +62,7 @@ class Design:
     def __init__(self, r, theme):
         self.r = r; self.D = r.D; self.lines = r.lines
         self.T = dict(DESIGN_THEMES[theme]); self.T.update({k: v for k, v in r.st.items() if k in ('ink', 'acc')})
-        self._f = {}; self._c = {}; self._faces = {}
+        self._f = {}; self._c = {}; self._faces = {}; self._cm = {}
         cs = self.fpath('charset-design.txt'); self.chars = set(open(cs, encoding='utf-8').read()) if cs else None
         self.parts = []
         for l in self.lines:
@@ -74,12 +82,35 @@ class Design:
         if k not in self._f: self._f[k] = ImageFont.truetype(self.fpath(name) or self.fpath(ROUND), max(8, int(size)))
         return self._f[k]
 
-    def runs(self, s, name):
-        """設計字型只收常用字；罕用字自動改用粉圓，不會變方塊"""
-        if not self.chars or name in (ROUND, ITAL): return [(s, name)]
+    def cmap(self, name):
+        """這個字型檔真的有哪些字（直接讀字型，不靠字表，避免方塊字）"""
+        if name not in self._cm:
+            try:
+                from fontTools.ttLib import TTFont
+                self._cm[name] = set(TTFont(self.fpath(name) or self.fpath(ROUND)).getBestCmap())
+            except Exception:
+                self._cm[name] = None
+        return self._cm[name]
+
+    def has(self, ch, name):
+        cm = self.cmap(name)
+        if cm is None: return name == ROUND or (self.chars is None or ch in self.chars)
+        return ord(ch) in cm
+
+    def clean(self, s):
+        """所有字型都沒有的符號：換成長得像的字，換不了就拿掉（不會出現方塊）"""
         out = []
         for ch in s:
-            n = name if ch in self.chars or ch.isspace() else ROUND
+            if ch.isspace() or any(self.has(ch, n) for n in (SANS, SERIF, ROUND)): out.append(ch); continue
+            rep = GLYPH_SUB.get(ch)
+            if rep is not None: out.append(rep)
+        return ''.join(out)
+
+    def runs(self, s, name):
+        """每個字先用指定字型；那個字型沒有就換粉圓／黑體／宋體；都沒有的符號先換掉或拿掉"""
+        s = self.clean(s); out = []
+        for ch in s:
+            n = name if ch.isspace() or self.has(ch, name) else next((m for m in (ROUND, SANS, SERIF) if self.has(ch, m)), name)
             if out and out[-1][1] == n: out[-1] = (out[-1][0] + ch, n)
             else: out.append((ch, n))
         return out
@@ -523,6 +554,49 @@ class Explain(Design):
     節奏：每句 2～3 個元素，間隔約 0.3～0.5 秒彈出（參考爆款講解型短影音）。"""
     CAP_TOP = 300
 
+    # ---------- 上方步驟進度條（有「第1步、第2步…」時，從第一步開始一直顯示） ----------
+    def all_steps(self):
+        if 'steps_all' in self._c: return self._c['steps_all']
+        best = (None, [])
+        for p in self.parts:
+            rows = [(k, l['banner']) for k, l in enumerate(self.lines) if l.get('part') == p and l.get('banner')]
+            if len(rows) >= 2 and len(rows) > len(best[1]): best = (p, rows)
+        names = [re.sub(r'^第\s*([0-9一二三四五六七八九十]+)\s*[步招個點]\s*', '', b) or b for _, b in best[1]]
+        first = best[1][0][0] if best[1] else None
+        self._c['steps_all'] = (first, [k for k, _ in best[1]], names); return self._c['steps_all']
+
+    def step_state(self, i):
+        """回傳 (目前第幾步, 名稱清單)；還沒到步驟段就回 None"""
+        first, idx, names = self.all_steps()
+        if first is None or i < first or self.r.st.get('progress') is False: return None
+        return sum(1 for k in idx if k <= i), names
+
+    def cap_top(self, i): return self.CAP_TOP + (120 if self.step_state(i) else 0)
+
+    def progress_bar(self, i, since):
+        st = self.step_state(i)
+        if not st: return None
+        cur, names = st; n = len(names); T = self.T; ink, acc, mut = hexrgb(T['ink']), hexrgb(T['acc']), hexrgb(T['muted'])
+        im = Image.new('RGBA', (W, 130), (0, 0, 0, 0)); d = ImageDraw.Draw(im)
+        x0, x1, y = 130, W - 130, 40; xs = [x0 + (x1 - x0) * k / max(1, n - 1) for k in range(n)]
+        d.line([(x0, y), (x1, y)], fill=mut + (150,), width=4)
+        prog = clamp(since / 0.4)          # 進到新的一步：線往前長過去
+        reach = xs[max(0, cur - 2)] + (xs[cur - 1] - xs[max(0, cur - 2)]) * prog if cur >= 1 else x0
+        d.line([(x0, y), (reach, y)], fill=acc + (255,), width=6)
+        for k, x in enumerate(xs):
+            num = k + 1; r = 24 if num == cur else 18
+            if num < cur:
+                d.ellipse([x - r, y - r, x + r, y + r], fill=acc + (255,))
+                d.line([(x - 8, y), (x - 2, y + 7), (x + 9, y - 7)], fill='#FFFFFF', width=4, joint='curve')
+            elif num == cur:
+                d.ellipse([x - r - 6, y - r - 6, x + r + 6, y + r + 6], fill=acc + (60,))
+                d.ellipse([x - r, y - r, x + r, y + r], fill=ink + (255,)); self.text(d, (x, y), str(num), SANS, 26, '#FFFFFF', 'mm')
+            else:
+                d.ellipse([x - r, y - r, x + r, y + r], fill='#FFFFFF', outline=mut + (255,), width=3); self.text(d, (x, y), str(num), SANS, 22, T['muted'], 'mm')
+            lab = names[k][:5]; fz = 24
+            self.text(d, (x, y + 52), lab, SANSM if num == cur else SANSM, fz, T['ink'] if num <= cur else T['muted'], 'mm')
+        return im
+
     # ---------- 上方逐字字幕 ----------
     def karaoke_lines(self, text):
         f, size = self.T['cap_font'], 62
@@ -540,7 +614,7 @@ class Explain(Design):
             while e and k >= 0:
                 for j in range(k, k + len(e)): marks[j] = True
                 k = text.find(e, k + 1)
-        d = ImageDraw.Draw(scene); idx = 0; y = self.CAP_TOP; lh = int(size * 1.45)
+        d = ImageDraw.Draw(scene); idx = 0; y = self.cap_top(i); lh = int(size * 1.45)
         ink, mut, acc = hexrgb(T['ink']), hexrgb(T['muted']), hexrgb(T['acc'])
         for ln in ls:
             x = W / 2 - self.tw(ln, f, size) / 2; j = 0
@@ -610,8 +684,10 @@ class Explain(Design):
         C = self.content_of(i); T = self.T; rows = C['steps']; w = 720; rh = 92
         h = 110 + rh * len(rows) + 30
         im, _ = self.white_card(w, h); d = ImageDraw.Draw(im)
-        chip = f"✓ {C['label']}"; cw = self.tw(chip, SANSM, 28) + 40
-        d.rounded_rectangle([60, 55, 60 + cw, 101], 23, fill=hexrgb(T['acc']) + (40,)); self.text(d, (80, 78), chip, SANSM, 28, T['acc'], 'lm')
+        chip = C['label']; cw = self.tw(chip, SANSM, 28) + 76; ac = hexrgb(T['acc'])
+        d.rounded_rectangle([60, 55, 60 + cw, 101], 23, fill=ac + (40,))
+        d.line([(82, 79), (90, 87), (104, 70)], fill=ac + (255,), width=5, joint='curve')   # 打勾用畫的，不靠字型
+        self.text(d, (116, 78), chip, SANSM, 28, T['acc'], 'lm')
         for r, s in enumerate(rows):
             cy = 30 + 110 + r * rh + rh // 2; cur = r == len(rows) - 1
             d.ellipse([60, cy - 24, 108, cy + 24], fill=T['ink'] if cur else '#D9D4CC'); self.text(d, (84, cy), str(r + 1), SANS, 26, '#FFFFFF', 'mm')
@@ -624,42 +700,83 @@ class Explain(Design):
         if hk and self.lines[i]['start'] < hk.get('until', 3.0) - 0.2: return 'r'
         return 'r' if i % 2 == 0 else 'l'
 
+    def person_box(self, i):
+        """這句人物實際占的範圍（用透明度算，髮飾、頭髮也算進去）"""
+        im = self.face(self.lines[i].get('face', 'neutral'), False)
+        if im is None: return None
+        x = self.face_x(self.side(i), im.width); y = FACE_BOTTOM - im.height
+        bb = im.getchannel('A').point(lambda v: 255 if v > 40 else 0).getbbox() or (0, 0, im.width, im.height)
+        return (x + bb[0], y + bb[1], x + bb[2], y + bb[3])
+
+    def content_top(self, i):
+        ls, size = self.karaoke_lines(self.lines[i]['text'])
+        yb = self.cap_top(i) + (len(ls) - 1) * int(size * 1.45) + size * 0.7
+        return int(yb + 40 + 58 + 14)            # 小標下面再留空，卡片自帶 30px 陰影邊
+
+    def stack(self, items, i, top, bottom=1470, margin=40, gap=6):
+        """由上往下排，不重疊：跟人物同高度的部分只用人物旁邊的空欄，太寬就縮小，整體超出底線就整組縮小"""
+        P = self.person_box(i); sd = self.side(i)
+        for sc in [1.0, 0.92, 0.85, 0.78, 0.72, 0.66, 0.6]:
+            out, y = [], top
+            for it in items:
+                im = it['im']
+                if sc < 1: im = im.resize((max(1, int(im.width * sc)), max(1, int(im.height * sc))), Image.LANCZOS)
+                y += int(it.get('gap', gap) * sc)
+                def rng(h):
+                    if P and y + h > P[1] + 30:
+                        return (P[2] + 10, W - margin) if sd == 'l' else (margin, P[0] - 10)
+                    return (margin, W - margin)
+                x0, x1 = rng(im.height)
+                if im.width > x1 - x0:
+                    k = max(0.55, (x1 - x0) / im.width); im = im.resize((max(1, int(im.width * k)), max(1, int(im.height * k))), Image.LANCZOS)
+                    x0, x1 = rng(im.height)
+                al = it.get('align', 'c')
+                cx = (x0 + im.width / 2) if al == 'l' else (x1 - im.width / 2) if al == 'r' else (x0 + x1) / 2
+                if al == 'c' and (x1 - x0) > 900: cx = (x0 + x1) / 2 + (40 if sd == 'r' else -40) * 0   # 全寬時置中
+                out.append((im, cx, y + im.height / 2, it['delay'], it.get('kind', ''))); y += im.height
+            if y <= bottom: return out, y
+        return out, y
+
     def elements(self, i):
-        """這句要彈出的元素：[(圖, 中心 x, 中心 y, 延遲秒)]"""
+        """這句要彈出的元素：[(圖, 中心 x, 中心 y, 延遲秒)]，用 stack() 排版，保證不互相重疊、不壓到人物"""
         key = ('el', i)
         if key in self._c: return self._c[key]
-        L = self.lines[i]; C = self.content_of(i); T = self.T; sd = self.side(i)
-        cx = 470 if sd == 'r' else 610; els = []; top = 560
+        L = self.lines[i]; C = self.content_of(i); sd = self.side(i); items = []
         mode = self.r.media_mode(i)
         if mode == 'card' and self.media_photo(i) is not None:
-            ph = self.phone(Image.open(self.r.media_path(L['media'])))
-            els.append((ph, cx - 60 if sd == 'r' else cx + 60, 790, 0.0))
             tag = C['big'].replace('\n', ' ') if C['big'] and not C['plain'] else (L.get('emph') or [''])[0]
-            if tag: els.append((self.label_block(tag, 520, 84, 4), cx + 170 if sd == 'r' else cx - 170, 560, 0.35))
+            if tag: items.append(dict(im=self.label_block(tag, 640, 90), delay=0.35))
+            items.append(dict(im=self.phone(Image.open(self.r.media_path(L['media']))), delay=0.0))
         elif C['steps']:
-            els.append((self.checklist(i), cx, 700, 0.0))
+            items.append(dict(im=self.checklist(i), delay=0.0))
         elif C['big'] and not C['plain']:
+            big = C['big'].replace('\n', '・')
             if C['lead']:
-                els.append((self.text_card(C['lead'], 58, 700, -1.5), cx, top + 20, 0.0))
-                bl = self.label_block(C['big'].replace('\n', '・') if C['big'].count('\n') > 2 else C['big'].split('\n')[0] if '\n' not in C['big'] else C['big'].replace('\n', '・'), 720, 120, -3)
-                els.append((bl, cx + 20, top + 260, 0.3))
+                items.append(dict(im=self.text_card(C['lead'], 58, 760), delay=0.0))
+                items.append(dict(im=self.label_block(big, 900, 120), delay=0.3, gap=0))
             else:
-                els.append((self.label_block(C['big'].replace('\n', '・'), 760, 130, -3), cx, top + 140, 0.0))
-            if C['tail']: els.append((self.text_card(C['tail'], 44, 520, 2, 1), cx + 60, top + 420, 0.6))
+                items.append(dict(im=self.label_block(big, 900, 130), delay=0.0))
+            if C['tail']: items.append(dict(im=self.text_card(C['tail'], 44, 560, 0, 1), delay=0.6, gap=0))
         else:
-            els.append((self.text_card(C['big'], 70, 740, 1.5, 2), cx, top + 80, 0.0))
+            items.append(dict(im=self.text_card(C['big'], 70, 800, 0, 2), delay=0.0))
+        st = L.get('stamp')
+        if st:
+            sz = 60; w = int(self.tw(st, SANS, sz)) + 60; h = int(sz * 1.5)
+            im = Image.new('RGBA', (w + 20, h + 20), (0, 0, 0, 0)); d = ImageDraw.Draw(im)
+            d.rounded_rectangle([10, 10, 10 + w, 10 + h], 10, fill='#FFFFFFE6', outline='#D23A2A', width=7); self.text(d, (10 + w / 2, 10 + h / 2), st, SANS, sz, '#D23A2A', 'mm')
+            items.append(dict(im=im.rotate(6, expand=True, resample=Image.BICUBIC), delay=0.75, align='r' if sd == 'l' else 'l', gap=4, kind='stamp'))
+        els, bottom = self.stack(items, i, self.content_top(i))
         prop = L.get('prop')
         if prop and mode != 'card' and not C['steps']:
             pp = find_prop(prop if isinstance(prop, str) else prop[0], [os.path.join(self.r.base, 'props'), os.path.join(self.r.base, '..', '..', 'props')])
             if pp:
-                im = ImageOps.contain(Image.open(pp).convert('RGBA'), (150, 150), Image.LANCZOS)
-                els.append((im, 230 if sd == 'r' else 850, 1330, 0.55))
-        st = L.get('stamp')
-        if st:
-            sz = 64; w = int(self.tw(st, SANS, sz)) + 60; h = int(sz * 1.5)
-            im = Image.new('RGBA', (w + 20, h + 20), (0, 0, 0, 0)); d = ImageDraw.Draw(im)
-            d.rounded_rectangle([10, 10, 10 + w, 10 + h], 10, fill='#FFFFFFE6', outline='#D23A2A', width=7); self.text(d, (10 + w / 2, 10 + h / 2), st, SANS, sz, '#D23A2A', 'mm')
-            els.append((im.rotate(8, expand=True, resample=Image.BICUBIC), cx + 230, top + 430, 0.75))
+                im = ImageOps.contain(Image.open(pp).convert('RGBA'), (140, 140), Image.LANCZOS)
+                P = self.person_box(i); boxes = [(cx - e.width / 2, cy - e.height / 2, cx + e.width / 2, cy + e.height / 2) for e, cx, cy, *_ in els] + ([P] if P else [])
+                fx = 200 if sd == 'r' else W - 200
+                for cy in (1340, bottom + 110, 1200):
+                    bx = (fx - 90, cy - 90, fx + 90, cy + 90)
+                    if cy < 1450 and not any(bx[0] < b[2] and b[0] < bx[2] and bx[1] < b[3] and b[1] < bx[3] for b in boxes):
+                        els.append((im, fx, cy, 0.55)); break
         self._c[key] = els; return els
 
     # ---------- 封面 ----------
@@ -695,7 +812,9 @@ class Explain(Design):
         if k in self._faces: return self._faces[k]
         im = self.r.face(key, talk)
         if im is None: self._faces[k] = None; return None
-        h = 600; im = im.resize((max(1, int(im.width * h / im.height)), h), Image.LANCZOS)
+        h = 600; w = im.width * h / im.height
+        if w > 480: h = int(h * 480 / w); w = 480      # 髮型、頭飾很寬的照片整個縮小，人物是配角，留空間給字
+        im = im.resize((max(1, int(w)), h), Image.LANCZOS)
         self._faces[k] = im; return im
 
     # ---------- 一格 ----------
@@ -713,15 +832,21 @@ class Explain(Design):
                 else: scene.alpha_composite(self.fade(lay, a))
         if t >= u:
             since = min(lt, t - u)
+            pb = self.progress_bar(i, since if (i == 0 or self.step_state(i) != self.step_state(i - 1)) else 9)
+            if pb is not None: scene.alpha_composite(pb, (0, 240))
             yb = self.draw_karaoke(scene, i, t)
             bd = self.badge(i); prevb = self.badge(i - 1) if i > 0 else None
             a = 1.0 if (prevb is bd and t - u > 0.3) else clamp(since / 0.2)
             scene.alpha_composite(self.fade(bd, a), (80, int(yb + 40)))
             prev_steps = i > 0 and self.content_of(i - 1)['steps'] and self.content_of(i)['steps']
-            for im, cx, cy, dl in self.elements(i):
+            for e in self.elements(i):
+                im, cx, cy, dl = e[:4]; kind = e[4] if len(e) > 4 else ''
                 tj = since - dl
                 if tj <= 0: continue
                 k = 1.0 if (prev_steps and dl == 0) else back(tj / 0.32); a = clamp(tj / 0.12)
+                if kind == 'stamp':   # 印章：從大大的蓋下來，落地時輕輕一震
+                    k = 1 + 0.9 * (1 - out3(tj / 0.22)); a = clamp(tj / 0.08)
+                    if 0.22 < tj < 0.4: cx += 6 * math.sin(tj * 90)
                 q = im if abs(k - 1) < 0.01 else im.resize((max(1, int(im.width * k)), max(1, int(im.height * k))), Image.BILINEAR)
                 scene.alpha_composite(self.fade(q, a), (int(cx - q.width / 2), int(cy - q.height / 2)))
         # 人物：白邊貼紙，換位置或換表情時彈一下
@@ -729,12 +854,23 @@ class Explain(Design):
         sd = self.side(i); psd = self.side(i - 1) if i > 0 else sd
         pf = self.lines[i - 1].get('face') if i > 0 else None
         x = self.face_x(sd, im.width)
+        if self.r.st.get('blob', True):   # 頭後面一個淡淡的圓，人物比較跳
+            P = self.person_box(i)
+            if P:
+                rr = int((P[2] - P[0]) * 0.42); hx, hy = (P[0] + P[2]) / 2, P[1] + (P[3] - P[1]) * 0.36
+                bl = Image.new('RGBA', scene.size, (0, 0, 0, 0)); ImageDraw.Draw(bl).ellipse([hx - rr, hy - rr, hx + rr, hy + rr], fill=hexrgb(self.T['acc']) + (34,))
+                scene.alpha_composite(bl)
         if (sd != psd or pf != fname or i == 0) and lt < 0.35:
             k = back(lt / 0.3, 2.0); sc = 0.8 + 0.2 * k
             q = im.resize((max(1, int(im.width * sc)), max(1, int(im.height * sc))), Image.BILINEAR)
             scene.alpha_composite(q, (int(x + (im.width - q.width) / 2), int(FACE_BOTTOM - q.height)))
         else: scene.alpha_composite(im, (int(x), int(FACE_BOTTOM - im.height)))
         self.put_tag(scene, x, im.width)
+        # 換段落（起承轉合換段）：斜的色塊從右往左刷過去
+        if i > 0 and t >= u and self.lines[i].get('part') and self.lines[i].get('part') != self.lines[i - 1].get('part') and lt < 0.4 and self.r.st.get('wipe', True):
+            q = lt / 0.4; ex = W * 1.6 * (1 - q) - W * 0.3
+            poly = [(ex, 0), (ex + 420, 0), (ex + 420 - 700, H), (ex - 700, H)]
+            wl = Image.new('RGBA', scene.size, (0, 0, 0, 0)); ImageDraw.Draw(wl).polygon(poly, fill=hexrgb(self.T['acc']) + (235,)); scene.alpha_composite(wl)
         out = scene.convert('RGB')
         return out if r.S == 1 else out.resize((r.w, r.h), Image.LANCZOS)
 

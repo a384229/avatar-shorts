@@ -228,13 +228,30 @@ def align(a):
         s, e = speech[0][0], speech[-1][1]; chars = [len(l.get('say') or l['text']) for l in D['lines']]; tot = sum(chars); t = s; speech = []
         for c in chars: d = (e - s) * c / tot; speech.append([t, t + d]); t += d
     pcm = read_pcm(src); segs = []; adir = os.path.join(base, 'audio'); os.makedirs(adir, exist_ok=True)
+    dc, rec = cleaner(a)
     for i, (ln, (s, e)) in enumerate(zip(D['lines'], speech), 1):
         seg = pcm[int(max(0, s - .05) * SR) * 2:int((e + .05) * SR) * 2]
+        write_wav(os.path.join(adir, f'line_{i:02d}_raw.wav'), seg)
+        if dc:
+            nx = D['lines'][i] if i < len(D['lines']) else {}
+            seg, note = dc.clean_pcm(seg, SR, ln.get('say') or ln['text'], rec, nx.get('say') or nx.get('text', ''))
+            if note: print(f'  第{i}句 去卡頓：' + '、'.join(note))
         f = os.path.join(adir, f'line_{i:02d}_rec.wav'); write_wav(f, seg); ln['audio'] = os.path.relpath(f, base)
         segs.append((ln, seg))
     D['voice_provider'] = 'recorded'
     print('每句切好的錄音在 audio/，某句要重錄：voice.py redo … --line 句號 --audio 新錄音')
     assemble(D, a.director, segs)
+
+
+def cleaner(a):
+    """去卡頓（declutter.py）；--raw 就不處理"""
+    if getattr(a, 'raw', False): return None, None
+    try:
+        import declutter
+    except Exception as e:
+        print(f'  ⚠ 去卡頓沒辦法用（{e}），保留原始錄音'); return None, None
+    rec = None if getattr(a, 'no_asr', False) else declutter.recognizer_or_none()
+    return declutter, rec
 
 
 def write_wav(path, pcm):
@@ -249,6 +266,10 @@ def redo(a):
         if i != n and not (ln.get('audio') and os.path.exists(os.path.join(base, ln['audio']))):
             raise SystemExit(f'第 {i} 句沒有單句錄音檔，請整篇重跑 align 或 say')
     f = os.path.join(base, 'audio', f'line_{n:02d}_rec.wav'); to_wav(a.audio, f)
+    dc, rec = cleaner(a)
+    if dc:
+        ln = D['lines'][n - 1]; seg, note = dc.clean_pcm(read_pcm(f), SR, ln.get('say') or ln['text'], rec); write_wav(f, seg)
+        if note: print(f'  第{n}句 去卡頓：' + '、'.join(note))
     D['lines'][n - 1]['audio'] = os.path.relpath(f, base)
     segs = [(ln, read_pcm(os.path.join(base, ln['audio']))) for ln in D['lines']]
     assemble(D, a.director, segs)
@@ -284,8 +305,10 @@ if __name__ == '__main__':
     p = sp.add_parser('say'); p.add_argument('director'); p.add_argument('--voice'); p.add_argument('--provider', help='edge＝不用自己的聲音、免費試做')
     p.add_argument('--speed', type=float); p.set_defaults(f=say)
     p = sp.add_parser('align'); p.add_argument('director'); p.add_argument('--audio', required=True); p.add_argument('--min-pause', type=float, default=0.35)
-    p.add_argument('--no-asr', action='store_true', help='不用語音辨識，只看停頓切句'); p.set_defaults(f=align)
-    p = sp.add_parser('redo'); p.add_argument('director'); p.add_argument('--line', type=int, required=True); p.add_argument('--audio', required=True); p.set_defaults(f=redo)
+    p.add_argument('--no-asr', action='store_true', help='不用語音辨識，只看停頓切句')
+    p.add_argument('--raw', action='store_true', help='不去卡頓，保留原始錄音（長停頓、重念都留著）'); p.set_defaults(f=align)
+    p = sp.add_parser('redo'); p.add_argument('director'); p.add_argument('--line', type=int, required=True); p.add_argument('--audio', required=True)
+    p.add_argument('--raw', action='store_true'); p.add_argument('--no-asr', action='store_true'); p.set_defaults(f=redo)
     p = sp.add_parser('sheet'); p.add_argument('director'); p.set_defaults(f=sheet)
     p = sp.add_parser('silent'); p.add_argument('director'); p.set_defaults(f=silent)
     a = ap.parse_args(); a.f(a)
