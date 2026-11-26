@@ -857,7 +857,7 @@ class Explain(Design):
         if self.r.st.get('blob', True):   # 頭後面一個淡淡的圓，人物比較跳
             P = self.person_box(i)
             if P:
-                rr = int((P[2] - P[0]) * 0.42); hx, hy = (P[0] + P[2]) / 2, P[1] + (P[3] - P[1]) * 0.36
+                rr = int((P[2] - P[0]) * 0.42); hx, hy = (P[0] + P[2]) / 2, P[1] + (P[3] - P[1]) * 0.5
                 bl = Image.new('RGBA', scene.size, (0, 0, 0, 0)); ImageDraw.Draw(bl).ellipse([hx - rr, hy - rr, hx + rr, hy + rr], fill=hexrgb(self.T['acc']) + (34,))
                 scene.alpha_composite(bl)
         if (sd != psd or pf != fname or i == 0) and lt < 0.35:
