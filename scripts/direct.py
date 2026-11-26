@@ -95,6 +95,21 @@ def show(path):
     print(md); print('（已存 ' + out + '）')
 
 
+# 美安等夥伴最常踩的兩條：保健食品／保養品寫療效、招募片保證收入（只提醒，Claude 要改寫成實際體驗或過程）
+CLAIM_HEALTH = re.compile(r'抗老|抗衰|逆齡|凍齡|回春|治療|治癒|根治|療效|藥效|減肥|瘦身|降血[壓糖脂]|防癌|抗癌|延緩老化|排毒|增強免疫|提升免疫')
+CLAIM_MONEY = re.compile(r'保證|穩賺|一定賺|月入|年收|躺著賺|躺賺|被動收入|財富自由|輕鬆賺|零風險|不用工作|快速致富|翻身')
+
+
+def claim_warns(D):
+    out = []
+    texts = [('開場大字', (D.get('hook') or {}).get('text', ''))] + [(f'第{i}句', l.get('text', '') + ' ' + (l.get('big') or '')) for i, l in enumerate(D['lines'], 1)]
+    for where, t in texts:
+        h = sorted(set(CLAIM_HEALTH.findall(t))); m = sorted(set(CLAIM_MONEY.findall(t)))
+        if h: out.append(f'{where} 有療效字眼「{"、".join(h)}」：保健食品／保養品不能寫功效，改成自己的使用習慣或感受')
+        if m: out.append(f'{where} 有收入字眼「{"、".join(m)}」：招募片不能保證收入，改成說自己為什麼做、過程是什麼')
+    return out
+
+
 def lint(path):
     D = load(path); base = os.path.dirname(os.path.abspath(path)); fd = os.path.join(base, D.get('faces', '../../faces'))
     errs, warns = [], []
@@ -131,6 +146,7 @@ def lint(path):
     if D['lines'] and not any(CTA.search(l['text']) for l in D['lines'][-2:]): warns.append('結尾兩句沒有 CTA（只要一個動作：追蹤／留言／收藏／私訊…，並說為什麼）')
     if D['lines'] and D['lines'][0].get('cam', 'still') == 'still': warns.append('第 1 句運鏡是不動，開頭建議 punch 或 shake')
     if D.get('duration') and not 15 <= D['duration'] <= 90: warns.append(f'總長 {D["duration"]:.0f} 秒，短影音建議 20～60 秒')
+    warns += claim_warns(D)
     for e in errs: print('✗ ' + e)
     for w in warns: print('⚠ ' + w)
     print('導演表檢查：' + ('✓ 沒問題' if not errs and not warns else f'{len(errs)} 個錯誤、{len(warns)} 個建議'))
