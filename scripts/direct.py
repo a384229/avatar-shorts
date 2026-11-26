@@ -100,6 +100,9 @@ CLAIM_HEALTH = re.compile(r'抗老|抗衰|逆齡|凍齡|回春|治療|治癒|根
 CLAIM_MONEY = re.compile(r'保證|穩賺|一定賺|月入|年收|躺著賺|躺賺|被動收入|財富自由|輕鬆賺|零風險|不用工作|快速致富|翻身')
 
 
+WEAK_HOOK = re.compile(r'^(你是不是(很|也)?想|你想不想|想不想|想要|你想要|今天(要|來|跟|教)|哈囉|大家好|嗨|跟大家分享|我要(來)?(分享|教))')
+
+
 def claim_warns(D):
     out = []
     texts = [('開場大字', (D.get('hook') or {}).get('text', ''))] + [(f'第{i}句', l.get('text', '') + ' ' + (l.get('big') or '')) for i, l in enumerate(D['lines'], 1)]
@@ -144,6 +147,8 @@ def lint(path):
         if miss: warns.append('起承轉合少了「' + '、'.join(miss) + '」段')
         if [p for p in ps] != sorted(ps, key='起承轉合'.index): warns.append('起承轉合的順序亂了（要 起→承→轉→合）')
     if D['lines'] and not any(CTA.search(l['text']) for l in D['lines'][-2:]): warns.append('結尾兩句沒有 CTA（只要一個動作：追蹤／留言／收藏／私訊…，並說為什麼）')
+    if D['lines'] and WEAK_HOOK.search(D['lines'][0].get('text', '')):
+        warns.append(f'第1句「{D["lines"][0]["text"]}」開頭偏弱（願望／預告型），改成直接講痛點＋代價，例：「一開鏡頭，腦袋就一片空白？」（腳本庫 3-0）')
     if D['lines'] and D['lines'][0].get('cam', 'still') == 'still': warns.append('第 1 句運鏡是不動，開頭建議 punch 或 shake')
     if D.get('duration') and not 15 <= D['duration'] <= 90: warns.append(f'總長 {D["duration"]:.0f} 秒，短影音建議 20～60 秒')
     warns += claim_warns(D)
