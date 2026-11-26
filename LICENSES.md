@@ -14,3 +14,6 @@
 | 語音辨識模型（第一次使用時下載，不在本包內） | k2-fsa/sherpa-onnx Paraformer zh small | Apache License 2.0 |
 
 本 skill 程式碼以 MIT 授權釋出。
+
+## 選用：AI 去背（不隨附，第一次用時才安裝）
+- rembg（MIT）＋ isnet-general-use 模型：faces.py 遇到非綠幕背景時自動安裝、下載到使用者電腦，本機執行。
