@@ -23,11 +23,15 @@ DESIGN_THEMES = {
     '瑞士極簡': dict(kind='swiss', ink='#111111', acc='#E5372A', bg='#F5F4F0', collage=False, title=SANS, lead=SANSM, big=SANS, cap_font=SANS),
     '瑞士拼貼': dict(kind='swiss', ink='#111111', acc='#E5372A', bg='#F5F4F0', collage=True, title=SANS, lead=SANSM, big=SANS, cap_font=SANS),
     '拍立得':   dict(kind='polaroid', ink='#33291F', acc='#C0704E', bg='#F6F1EA', title=SERIF, lead=SERIFM, big=SERIF, cap_font=SERIF),
+    '講解橘':   dict(kind='explain', ink='#1E1A17', acc='#C2521C', bg='#F4F1EB', grid='#E7E2D9', muted='#C9C2B8',
+                     title=SERIF, lead=SERIFM, big=SANS, cap_font=SERIF),
+    '講解藍':   dict(kind='explain', ink='#17202E', acc='#2F62B0', bg='#F2F3F5', grid='#E2E5EA', muted='#C2C8D0',
+                     title=SERIF, lead=SERIFM, big=SANS, cap_font=SERIF),
     '撕紙':     dict(kind='torn', ink='#24312C', acc='#E0603C', bg='#F4EEE6', dark='#2F4A40', light='#F4EEE6', muted='#D9CFB8',
                      title=SERIF, lead=SERIFM, big=SERIF, cap_font=SERIF),
 }
 PART_LABEL = {'起': '先講結論', '承': '問題在哪', '轉': '怎麼做', '合': '下一步'}
-BOX = {'soft': (70, 270, 1010, 960), 'swiss': (80, 330, 1000, 975), 'polaroid': (90, 280, 970, 930), 'torn': (60, 270, 1000, 890)}
+BOX = {'explain': (80, 470, 1000, 1010), 'soft': (70, 270, 1010, 960), 'swiss': (80, 330, 1000, 975), 'polaroid': (90, 280, 970, 930), 'torn': (60, 270, 1000, 890)}
 FACE_H, FACE_BOTTOM, CAP_Y = 520, 1495, 1240
 
 
@@ -161,6 +165,9 @@ class Design:
             d.ellipse([520, 120, 1320, 920], fill=T['blob'] + (150,)); d.ellipse([-300, 1100, 400, 1800], fill=T['blob'] + (150,))
             img.alpha_composite(lay.filter(ImageFilter.GaussianBlur(130))); return img
         img = Image.new('RGBA', (W, H), T['bg']); d = ImageDraw.Draw(img)
+        if k == 'explain':
+            for x in range(0, W, 54): d.line([(x, 0), (x, H)], fill=T['grid'], width=2)
+            for y in range(0, H, 54): d.line([(0, y), (W, y)], fill=T['grid'], width=2)
         if k == 'swiss':
             for x in (80, 380, 680, 1000): d.line([(x, 250), (x, 1470)], fill='#DEDCD5', width=2)
             self.text(d, (80, 262), self.r.st.get('label_l') or 'SHORT VIDEO', SANSM, 30, T['ink'])
@@ -505,3 +512,228 @@ class Design:
                 scene.alpha_composite(self.fade(cap, a), (int(cx - cap.width / 2), int(CAP_Y - cap.height / 2 + 10 * (1 - out3((t - a0) / 0.2)))))
         out = scene.convert('RGB')
         return out if r.S == 1 else out.resize((r.w, r.h), Image.LANCZOS)
+
+
+def back(x, s=1.7):
+    x = clamp(x) - 1; return 1 + (s + 1) * x ** 3 + s * x ** 2
+
+
+class Explain(Design):
+    """講解卡片：上方逐字變色字幕（講到哪個字變深色、重點詞套色塊）＋段落小標＋中間卡片／標籤／手機畫面一個一個彈出＋白邊貼紙人物左右換位。
+    節奏：每句 2～3 個元素，間隔約 0.3～0.5 秒彈出（參考爆款講解型短影音）。"""
+    CAP_TOP = 300
+
+    # ---------- 上方逐字字幕 ----------
+    def karaoke_lines(self, text):
+        f, size = self.T['cap_font'], 62
+        if self.tw(text, f, size) <= 900: return [text], size
+        h = split_at(text); ls = [text[:h], text[h:]]
+        return ls, min(size, self.fit(max(ls, key=len), f, size, 900))
+
+    def draw_karaoke(self, scene, i, t):
+        L = self.lines[i]; T = self.T; text = L['text']; f = T['cap_font']
+        ls, size = self.karaoke_lines(text)
+        p = clamp((t - L['start']) / max(0.3, (L['end'] - L['start']) * 0.92)); n = len(text); shown = p * n
+        marks = [False] * n
+        for e in L.get('emph') or []:
+            k = text.find(e)
+            while e and k >= 0:
+                for j in range(k, k + len(e)): marks[j] = True
+                k = text.find(e, k + 1)
+        d = ImageDraw.Draw(scene); idx = 0; y = self.CAP_TOP; lh = int(size * 1.45)
+        ink, mut, acc = hexrgb(T['ink']), hexrgb(T['muted']), hexrgb(T['acc'])
+        for ln in ls:
+            x = W / 2 - self.tw(ln, f, size) / 2; j = 0
+            while j < len(ln):   # 重點詞：講到就套色塊
+                gi = idx + j
+                if marks[gi]:
+                    e = j
+                    while e < len(ln) and marks[idx + e]: e += 1
+                    seg = ln[j:e]; w = self.tw(seg, f, size); a = clamp((shown - gi) / 1.5)
+                    if a > 0:
+                        d.rounded_rectangle([x - 8, y - size * 0.62, x + w + 8, y + size * 0.62], 8, fill=acc + (int(255 * a),))
+                    for c in seg:
+                        k = clamp(shown - (idx + j)); col = tuple(int(mut[q] + ((255 if a > 0.5 else ink[q]) - mut[q]) * k) for q in range(3))
+                        x += self.text(d, (x, y), c, f, size, col, 'lm'); j += 1
+                    continue
+                c = ln[j]; k = clamp(shown - gi)
+                col = tuple(int(mut[q] + (ink[q] - mut[q]) * k) for q in range(3))
+                x += self.text(d, (x, y), c, f, size, col, 'lm'); j += 1
+            idx += len(ln); y += lh
+        return y - lh + size * 0.7
+
+    def badge(self, i):
+        C = self.content_of(i); key = ('badge', C['n'], C['label'])
+        if key in self._c: return self._c[key]
+        T = self.T; s = C['label']; fz = 32
+        w = int(self.tw(s, SANSM, fz)) + 110; h = 58; im = Image.new('RGBA', (w, h), (0, 0, 0, 0)); d = ImageDraw.Draw(im)
+        d.rounded_rectangle([0, 0, w - 1, h - 1], h // 2, fill=T['ink'])
+        d.ellipse([10, 9, 50, 49], fill='#FFFFFF'); self.text(d, (30, 29), f"{C['n']:02d}", SANS, 22, T['ink'], 'mm')
+        self.text(d, (64, 29), s, SANSM, fz, '#FFFFFF', 'lm'); self._c[key] = im; return im
+
+    # ---------- 元素 ----------
+    def white_card(self, w, h, rot=0, r=24):
+        im = Image.new('RGBA', (w + 60, h + 60), (0, 0, 0, 0))
+        self.rrect(im, [30, 30, 30 + w, 30 + h], r, '#FFFFFF', shadow=(60, 40, 20, 55), soff=(0, 12), blur=14)
+        return im, (lambda img: img.rotate(rot, expand=True, resample=Image.BICUBIC) if rot else img)
+
+    def label_block(self, s, maxw=720, size=120, rot=-3):
+        T = self.T; sz = self.fit(s, SANS, size, maxw - 80)
+        w = int(self.tw(s, SANS, sz)) + 80; h = int(sz * 1.45)
+        im = Image.new('RGBA', (w + 50, h + 50), (0, 0, 0, 0))
+        self.rrect(im, [20, 20, 20 + w, 20 + h], 22, T['acc'], shadow=(60, 20, 0, 70), soff=(0, 10), blur=10)
+        self.text(ImageDraw.Draw(im), (20 + w / 2, 20 + h / 2), s, SANS, sz, '#FFFFFF', 'mm')
+        return im.rotate(rot, expand=True, resample=Image.BICUBIC)
+
+    def text_card(self, s, size=60, w=700, rot=0, bars=2):
+        T = self.T; lines = s.split('\n') if '\n' in s else [s]
+        sz = min(self.fit(max(lines, key=len), T['lead'], size, w - 90), size); lh = int(sz * 1.4)
+        h = 60 + lh * len(lines) + bars * 34 + 20
+        im, rotf = self.white_card(w, h, 0); d = ImageDraw.Draw(im)
+        for j, ln in enumerate(lines): self.text(d, (75, 30 + 40 + j * lh + lh // 2), ln, T['lead'], sz, T['ink'], 'lm')
+        y = 30 + 40 + lh * len(lines) + 16
+        for b in range(bars): d.rounded_rectangle([75, y + b * 34, 75 + int((w - 150) * (0.9 - 0.25 * b)), y + b * 34 + 14], 7, fill='#ECE8E1')
+        return rotf(im) if rot else im
+
+    def phone(self, photo, w=330, h=600):
+        im = Image.new('RGBA', (w + 60, h + 60), (0, 0, 0, 0))
+        self.rrect(im, [30, 30, 30 + w, 30 + h], 44, '#1B1B1B', shadow=(0, 0, 0, 80), soff=(0, 14), blur=16)
+        sw, sh = w - 24, h - 24; ph = ImageOps.fit(photo.convert('RGB'), (sw, sh), Image.LANCZOS).convert('RGBA')
+        m = Image.new('L', (sw, sh), 0); ImageDraw.Draw(m).rounded_rectangle([0, 0, sw - 1, sh - 1], 34, fill=255); ph.putalpha(m)
+        im.alpha_composite(ph, (42, 42)); return im
+
+    def checklist(self, i):
+        C = self.content_of(i); T = self.T; rows = C['steps']; w = 720; rh = 92
+        h = 110 + rh * len(rows) + 30
+        im, _ = self.white_card(w, h); d = ImageDraw.Draw(im)
+        chip = f"✓ {C['label']}"; cw = self.tw(chip, SANSM, 28) + 40
+        d.rounded_rectangle([60, 55, 60 + cw, 101], 23, fill=hexrgb(T['acc']) + (40,)); self.text(d, (80, 78), chip, SANSM, 28, T['acc'], 'lm')
+        for r, s in enumerate(rows):
+            cy = 30 + 110 + r * rh + rh // 2; cur = r == len(rows) - 1
+            d.ellipse([60, cy - 24, 108, cy + 24], fill=T['ink'] if cur else '#D9D4CC'); self.text(d, (84, cy), str(r + 1), SANS, 26, '#FFFFFF', 'mm')
+            fz = self.fit(s, SANS if cur else T['lead'], 60 if cur else 48, w - 190)
+            self.text(d, (132, cy), s, SANS if cur else T['lead'], fz, T['ink'] if cur else '#9A928A', 'lm')
+        return im
+
+    def side(self, i):
+        hk = self.D.get('hook')
+        if hk and self.lines[i]['start'] < hk.get('until', 3.0) - 0.2: return 'r'
+        return 'r' if i % 2 == 0 else 'l'
+
+    def elements(self, i):
+        """這句要彈出的元素：[(圖, 中心 x, 中心 y, 延遲秒)]"""
+        key = ('el', i)
+        if key in self._c: return self._c[key]
+        L = self.lines[i]; C = self.content_of(i); T = self.T; sd = self.side(i)
+        cx = 470 if sd == 'r' else 610; els = []; top = 560
+        mode = self.r.media_mode(i)
+        if mode == 'card' and self.media_photo(i) is not None:
+            ph = self.phone(Image.open(self.r.media_path(L['media'])))
+            els.append((ph, cx - 60 if sd == 'r' else cx + 60, 790, 0.0))
+            tag = C['big'].replace('\n', ' ') if C['big'] and not C['plain'] else (L.get('emph') or [''])[0]
+            if tag: els.append((self.label_block(tag, 520, 84, 4), cx + 170 if sd == 'r' else cx - 170, 560, 0.35))
+        elif C['steps']:
+            els.append((self.checklist(i), cx, 700, 0.0))
+        elif C['big'] and not C['plain']:
+            if C['lead']:
+                els.append((self.text_card(C['lead'], 58, 700, -1.5), cx, top + 20, 0.0))
+                bl = self.label_block(C['big'].replace('\n', '・') if C['big'].count('\n') > 2 else C['big'].split('\n')[0] if '\n' not in C['big'] else C['big'].replace('\n', '・'), 720, 120, -3)
+                els.append((bl, cx + 20, top + 260, 0.3))
+            else:
+                els.append((self.label_block(C['big'].replace('\n', '・'), 760, 130, -3), cx, top + 140, 0.0))
+            if C['tail']: els.append((self.text_card(C['tail'], 44, 520, 2, 1), cx + 60, top + 420, 0.6))
+        else:
+            els.append((self.text_card(C['big'], 70, 740, 1.5, 2), cx, top + 80, 0.0))
+        prop = L.get('prop')
+        if prop and mode != 'card' and not C['steps']:
+            pp = find_prop(prop if isinstance(prop, str) else prop[0], [os.path.join(self.r.base, 'props'), os.path.join(self.r.base, '..', '..', 'props')])
+            if pp:
+                im = ImageOps.contain(Image.open(pp).convert('RGBA'), (190, 190), Image.LANCZOS)
+                els.append((im, 860 if sd == 'r' else 220, top - 40, 0.55))
+        st = L.get('stamp')
+        if st:
+            sz = 64; w = int(self.tw(st, SANS, sz)) + 60; h = int(sz * 1.5)
+            im = Image.new('RGBA', (w + 20, h + 20), (0, 0, 0, 0)); d = ImageDraw.Draw(im)
+            d.rounded_rectangle([10, 10, 10 + w, 10 + h], 10, fill='#FFFFFFE6', outline='#D23A2A', width=7); self.text(d, (10 + w / 2, 10 + h / 2), st, SANS, sz, '#D23A2A', 'mm')
+            els.append((im.rotate(8, expand=True, resample=Image.BICUBIC), cx + 230, top + 430, 0.75))
+        self._c[key] = els; return els
+
+    # ---------- 封面 ----------
+    def cover_layers(self):
+        if 'cover' in self._c: return self._c['cover']
+        T = self.T; ls, tags, rib, en = self.hook_lines()
+        L = [Image.new('RGBA', (W, H), (0, 0, 0, 0)) for _ in range(3)]; D = [ImageDraw.Draw(x) for x in L]
+        x = 80
+        for tg in tags[:3]:
+            w = self.tw(tg, SANSM, 34) + 56; D[0].rounded_rectangle([x, 290, x + w, 350], 30, fill=T['ink'])
+            self.text(D[0], (x + w / 2, 320), tg, SANSM, 34, '#FFFFFF', 'mm'); x += w + 16
+        y = 410
+        for j, s in enumerate(ls):
+            last = j == len(ls) - 1 and len(ls) > 1
+            if last:
+                b = self.label_block(s, 900, 170, -3); L[1].alpha_composite(b, (60, y - 20)); y += b.height
+            else:
+                sz = self.fit(s, T['title'], 170, 900); self.text(D[1], (80, y), s, T['title'], sz, T['ink']); y += int(sz * 1.3)
+        if rib: self.text(D[2], (84, y + 10), rib, T['lead'], 46, T['ink'])
+        self._c['cover'] = [(L[0], 0.0), (L[1], 0.12), (L[2], 0.35)]
+        return self._c['cover']
+
+    def cover_image(self):
+        img = self.bg.copy()
+        for lay, _ in self.cover_layers(): img.alpha_composite(lay)
+        im = self.face(self.lines[0].get('face', 'neutral'), False)
+        img.alpha_composite(im, (int(self.face_x('r', im.width)), int(FACE_BOTTOM - im.height)))
+        self.put_tag(img, self.face_x('r', im.width), im.width)
+        return img.convert('RGB')
+
+    def face(self, key, talk):
+        k = ('xf', key, talk)
+        if k in self._faces: return self._faces[k]
+        im = self.r.face(key, talk)
+        if im is None: self._faces[k] = None; return None
+        h = 600; im = im.resize((max(1, int(im.width * h / im.height)), h), Image.LANCZOS)
+        self._faces[k] = im; return im
+
+    # ---------- 一格 ----------
+    def frame(self, fi):
+        r = self.r; t = fi / FPS; i = r.line_at(t); L = self.lines[i]; lt = t - L['start']
+        scene = self.bg.copy(); hk = self.D.get('hook'); u = hk.get('until', 3.0) if hk else -1
+        if hk and t < u + 0.25:
+            out = 1 - out3((t - u) / 0.25) if t > u else 1.0
+            for lay, dl in self.cover_layers():
+                k = back((t - dl) / 0.35) if t < u else 1.0; a = clamp((t - dl) / 0.15) * out
+                if a <= 0: continue
+                if abs(k - 1) > 0.01:
+                    sc = 0.9 + 0.1 * k; lay2 = lay.resize((int(W * sc), int(H * sc)), Image.BILINEAR); ox, oy = (W - lay2.width) // 2, int((H - lay2.height) * 0.2)
+                    scene.alpha_composite(self.fade(lay2, a), (ox, oy))
+                else: scene.alpha_composite(self.fade(lay, a))
+        if t >= u:
+            since = min(lt, t - u)
+            yb = self.draw_karaoke(scene, i, t)
+            bd = self.badge(i); prevb = self.badge(i - 1) if i > 0 else None
+            a = 1.0 if (prevb is bd and t - u > 0.3) else clamp(since / 0.2)
+            scene.alpha_composite(self.fade(bd, a), (80, int(yb + 40)))
+            prev_steps = i > 0 and self.content_of(i - 1)['steps'] and self.content_of(i)['steps']
+            for im, cx, cy, dl in self.elements(i):
+                tj = since - dl
+                if tj <= 0: continue
+                k = 1.0 if (prev_steps and dl == 0) else back(tj / 0.32); a = clamp(tj / 0.12)
+                q = im if abs(k - 1) < 0.01 else im.resize((max(1, int(im.width * k)), max(1, int(im.height * k))), Image.BILINEAR)
+                scene.alpha_composite(self.fade(q, a), (int(cx - q.width / 2), int(cy - q.height / 2)))
+        # 人物：白邊貼紙，換位置或換表情時彈一下
+        fname = L.get('face', 'neutral'); im = self.face(fname, False)
+        sd = self.side(i); psd = self.side(i - 1) if i > 0 else sd
+        pf = self.lines[i - 1].get('face') if i > 0 else None
+        x = self.face_x(sd, im.width)
+        if (sd != psd or pf != fname or i == 0) and lt < 0.35:
+            k = back(lt / 0.3, 2.0); sc = 0.8 + 0.2 * k
+            q = im.resize((max(1, int(im.width * sc)), max(1, int(im.height * sc))), Image.BILINEAR)
+            scene.alpha_composite(q, (int(x + (im.width - q.width) / 2), int(FACE_BOTTOM - q.height)))
+        else: scene.alpha_composite(im, (int(x), int(FACE_BOTTOM - im.height)))
+        self.put_tag(scene, x, im.width)
+        out = scene.convert('RGB')
+        return out if r.S == 1 else out.resize((r.w, r.h), Image.LANCZOS)
+
+
+def make(r, theme):
+    return Explain(r, theme) if DESIGN_THEMES[theme]['kind'] == 'explain' else Design(r, theme)

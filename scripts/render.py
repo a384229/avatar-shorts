@@ -47,7 +47,7 @@ THEMES = {
 }
 # 設計感系列（scripts/design.py）：人物在下方角落當配角，字幕放人物旁邊，不壓到臉
 from design import DESIGN_THEMES
-for _k in DESIGN_THEMES: THEMES[_k] = dict(stage='design', sticker=False)
+for _k in DESIGN_THEMES: THEMES[_k] = dict(stage='design', sticker=DESIGN_THEMES[_k]['kind'] == 'explain')
 for _k, _v in THEMES.items():
     if _v: _v.setdefault('caption_size', 74)
 PROP_POS = {'right': (0.76, 0.33), 'left': (0.22, 0.33), 'top': (0.5, 0.2), 'top_right': (0.74, 0.22), 'top_left': (0.24, 0.22),
@@ -83,8 +83,8 @@ class R:
         self.bg = self.make_bg()
         self.rng = random.Random(7)
         if st.get('stage') == 'design':
-            from design import Design
-            self.dz = Design(self, th)
+            from design import make
+            self.dz = make(self, th)
 
     def px(self, v): return int(round(v * self.S))
 
