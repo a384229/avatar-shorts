@@ -549,11 +549,13 @@ class Explain(Design):
                 if marks[gi]:
                     e = j
                     while e < len(ln) and marks[idx + e]: e += 1
-                    seg = ln[j:e]; w = self.tw(seg, f, size); a = clamp((shown - gi) / 1.5)
-                    if a > 0:
-                        d.rounded_rectangle([x - 8, y - size * 0.62, x + w + 8, y + size * 0.62], 8, fill=acc + (int(255 * a),))
+                    seg = ln[j:e]; w = self.tw(seg, f, size); a = clamp((shown - gi) / max(1, len(seg)))
+                    if a > 0:   # 螢光筆底線：跟著講的速度由左往右畫過去
+                        band = Image.new('RGBA', scene.size, (0, 0, 0, 0))
+                        ImageDraw.Draw(band).rounded_rectangle([x - 4, y + size * 0.08, x - 4 + (w + 8) * a, y + size * 0.52], 6, fill=acc + (70,))
+                        scene.alpha_composite(band); d = ImageDraw.Draw(scene)
                     for c in seg:
-                        k = clamp(shown - (idx + j)); col = tuple(int(mut[q] + ((255 if a > 0.5 else ink[q]) - mut[q]) * k) for q in range(3))
+                        k = clamp(shown - (idx + j)); col = tuple(int(mut[q] + (acc[q] - mut[q]) * k) for q in range(3))
                         x += self.text(d, (x, y), c, f, size, col, 'lm'); j += 1
                     continue
                 c = ln[j]; k = clamp(shown - gi)
@@ -578,12 +580,14 @@ class Explain(Design):
         return im, (lambda img: img.rotate(rot, expand=True, resample=Image.BICUBIC) if rot else img)
 
     def label_block(self, s, maxw=720, size=120, rot=-3):
-        T = self.T; sz = self.fit(s, SANS, size, maxw - 80)
-        w = int(self.tw(s, SANS, sz)) + 80; h = int(sz * 1.45)
-        im = Image.new('RGBA', (w + 50, h + 50), (0, 0, 0, 0))
-        self.rrect(im, [20, 20, 20 + w, 20 + h], 22, T['acc'], shadow=(60, 20, 0, 70), soff=(0, 10), blur=10)
-        self.text(ImageDraw.Draw(im), (20 + w / 2, 20 + h / 2), s, SANS, sz, '#FFFFFF', 'mm')
-        return im.rotate(rot, expand=True, resample=Image.BICUBIC)
+        """重點大字：思源宋體粗字＋重點色、下半部淡色螢光筆底（不轉斜、不用實心色塊）。rot 保留參數相容，不使用。"""
+        T = self.T; acc = hexrgb(T['acc']); sz = self.fit(s, SERIF, size, maxw - 60)
+        tw = int(self.tw(s, SERIF, sz)); w = tw + 60; h = int(sz * 1.5)
+        im = Image.new('RGBA', (w + 40, h + 40), (0, 0, 0, 0)); d = ImageDraw.Draw(im)
+        x0, cy = 50, 20 + h / 2
+        d.rounded_rectangle([x0 - 10, cy + sz * 0.02, x0 + tw + 10, cy + sz * 0.5], int(sz * 0.12), fill=acc + (55,))
+        self.text(d, (x0, cy), s, SERIF, sz, T['acc'], 'lm')
+        return im
 
     def text_card(self, s, size=60, w=700, rot=0, bars=2):
         T = self.T; lines = s.split('\n') if '\n' in s else [s]
@@ -648,8 +652,8 @@ class Explain(Design):
         if prop and mode != 'card' and not C['steps']:
             pp = find_prop(prop if isinstance(prop, str) else prop[0], [os.path.join(self.r.base, 'props'), os.path.join(self.r.base, '..', '..', 'props')])
             if pp:
-                im = ImageOps.contain(Image.open(pp).convert('RGBA'), (190, 190), Image.LANCZOS)
-                els.append((im, 860 if sd == 'r' else 220, top - 40, 0.55))
+                im = ImageOps.contain(Image.open(pp).convert('RGBA'), (150, 150), Image.LANCZOS)
+                els.append((im, 230 if sd == 'r' else 850, 1330, 0.55))
         st = L.get('stamp')
         if st:
             sz = 64; w = int(self.tw(st, SANS, sz)) + 60; h = int(sz * 1.5)
