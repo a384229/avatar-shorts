@@ -147,6 +147,12 @@ def lint(path):
         if miss: warns.append('起承轉合少了「' + '、'.join(miss) + '」段')
         if [p for p in ps] != sorted(ps, key='起承轉合'.index): warns.append('起承轉合的順序亂了（要 起→承→轉→合）')
     if D['lines'] and not any(CTA.search(l['text']) for l in D['lines'][-2:]): warns.append('結尾兩句沒有 CTA（只要一個動作：追蹤／留言／收藏／私訊…，並說為什麼）')
+    for i, l in enumerate(D['lines'], 1):
+        b = l.get('big')
+        if isinstance(b, str) and b.strip():
+            tt = re.sub(r'[\s「」『』，。！？、]', '', l.get('text', ''))
+            parts = [re.sub(r'[\s「」『』，。！？、]', '', q) for q in b.split('\n')]
+            if any(q and q not in tt for q in parts): warns.append(f'第{i}句 大字「{b.replace(chr(10), "")}」不是句子裡的原字，上方引言會截得怪，建議用原句的字')
     if D['lines'] and WEAK_HOOK.search(D['lines'][0].get('text', '')):
         warns.append(f'第1句「{D["lines"][0]["text"]}」開頭偏弱（願望／預告型），改成直接講痛點＋代價，例：「一開鏡頭，腦袋就一片空白？」（腳本庫 3-0）')
     if D['lines'] and D['lines'][0].get('cam', 'still') == 'still': warns.append('第 1 句運鏡是不動，開頭建議 punch 或 shake')

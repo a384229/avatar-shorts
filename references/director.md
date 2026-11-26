@@ -36,7 +36,7 @@
 | sfx | 音效（不寫＝自動配） | pop bloop ding ding_hi ding_top boing sparkle whoosh whoosh_long tick boom glitch glass；"none" 關掉 |
 | layout | 人物位置和大小 | center 中間（預設）、left 靠左、right 靠右、close 臉部特寫、low_left／low_right 左下／右下（小）、small 中間縮小；換句時會平順移過去 |
 | head | 自訂位置（比 layout 優先） | {"x": 0.3, "y": 0.5, "size": 0.9}：x、y 是畫面比例 0～1（中心點），size 大小倍數；會自動留在安全區內 |
-| big | 空位放大字（吸睛重點） | 「然後呢」「保養\n日常」；不寫＝人物在旁邊時自動用第一個強調字；false 關掉。有大字的句子不放道具 |
+| big | 空位放大字（吸睛重點） | 「然後呢」「保養\n日常」；不寫＝人物在旁邊時自動用第一個強調字；false 關掉。有大字的句子不放道具。**用句子裡原本的字**（原句「私訊我『第一支』」→ big「第一支」，不要改寫成別的詞），不然上方引言會截得很怪 |
 | pause | 這句之後停多久（秒） | 預設 0.12；轉折前可以 0.4 |
 | media | 素材（照片、截圖、影片片段），放在工作資料夾 `素材/` | `{"file": "截圖.png", "mode": "card"}` 卡片彈在頭上方、大頭縮小往下；`"mode": "full"` 鋪滿畫面、大頭縮到右下角；影片可加 `"from": 秒數` 從第幾秒開始；橫的素材在 full 模式會自動用模糊底＋完整原圖，要裁滿加 `"crop": true` |
 | trans | 這句開始時的轉場動畫（0.4 秒） | zoom 縮放穿越、blinds 百葉窗、wipe 色塊掃過、flash 白光、none 不要；不寫＝有 banner 的新段落自動加（縮放穿越、百葉窗輪流） |
