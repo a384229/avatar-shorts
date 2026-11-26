@@ -438,10 +438,42 @@ class Design:
             x0, y0, x1, y1 = BOX[self.T['kind']]; w, h = x1 - x0 - 40, y1 - y0 - 40
             im = Image.open(self.r.media_path(m)).convert('RGB')
             im = ImageOps.exif_transpose(im) if hasattr(ImageOps, 'exif_transpose') else im
-            im = ImageOps.fit(im, (w, h), Image.LANCZOS, centering=(0.5, 0.5)).convert('RGBA')
+            cy = m.get('cy', 0.5) if isinstance(m, dict) else 0.5   # media.cy：0＝取上面、1＝取下面
+            im = ImageOps.fit(im, (w, h), Image.LANCZOS, centering=(0.5, cy)).convert('RGBA')
             mask = Image.new('L', (w, h), 0); ImageDraw.Draw(mask).rounded_rectangle([0, 0, w - 1, h - 1], 28, fill=255); im.putalpha(mask)
             self._c[key] = im
         return self._c[key]
+
+    def media_is_video(self, i):
+        m = self.lines[i].get('media')
+        if not m: return False
+        f = m['file'] if isinstance(m, dict) else m
+        return f.lower().endswith(('.mp4', '.mov', '.m4v', '.webm', '.mkv', '.gif'))
+
+    def video_frames(self, i, w, h, r=28):
+        """影片素材：取這句長度的畫面，裁滿 w×h（圓角），跟照片一樣填滿不留白"""
+        key = ('vf', i, w, h)
+        if key not in self._c:
+            import subprocess, io
+            m = self.lines[i]['media']; mm = m if isinstance(m, dict) else {}; L = self.lines[i]
+            dur = L['end'] - L['start'] + 0.6
+            out = subprocess.run(['ffmpeg', '-v', 'error', '-ss', str(mm.get('from', 0)), '-i', self.r.media_path(m), '-t', f'{dur:.2f}', '-an', '-vf',
+                                  f'fps={FPS},scale={w}:{h}:force_original_aspect_ratio=increase:flags=lanczos,crop={w}:{h}:(iw-{w})/2:(ih-{h})*{mm.get("cy", 0.5)}',
+                                  '-f', 'image2pipe', '-vcodec', 'png', '-'], capture_output=True).stdout
+            mask = Image.new('L', (w, h), 0); ImageDraw.Draw(mask).rounded_rectangle([0, 0, w - 1, h - 1], r, fill=255)
+            frames, k = [], 0
+            while True:
+                e = out.find(b'IEND', k)
+                if e < 0: break
+                im = Image.open(io.BytesIO(out[k:e + 8])).convert('RGBA'); im.putalpha(mask); frames.append(im); k = e + 8
+            self._c[key] = frames or None
+        return self._c[key]
+
+    def media_video_fill(self, i, lt):
+        x0, y0, x1, y1 = BOX[self.T['kind']]
+        fr = self.video_frames(i, x1 - x0 - 40, y1 - y0 - 40)
+        if not fr: return None
+        return fr[min(int(max(lt, 0) * FPS), len(fr) - 1)]
 
     def name_tag(self):
         """人物下方的小名牌（style.footer，例如「于葳影音｜網紅陪跑製造機」）"""
@@ -506,6 +538,8 @@ class Design:
             scene.alpha_composite(self.fade(self.container(), a))
             if mode == 'card':
                 mc = self.media_photo(i)
+                if mc is None and self.media_is_video(i):   # 影片也裁滿內容框，不再縮成小手機框
+                    mc = self.media_video_fill(i, lt)
                 if mc is None:
                     mc = r.media_frame(i, lt, 'card')
                     if mc is not None and r.S != 1: mc = mc.resize((int(mc.width / r.S), int(mc.height / r.S)), Image.BILINEAR)
@@ -528,7 +562,7 @@ class Design:
         im = self.face(fname, True) if talking and (fi // 3) % 3 != 2 else None
         im = im or self.face(fname, False)
         s1 = self.side_of(i, t); s0 = self.side_of(i - 1, L['start'] - 0.01) if i > 0 else s1
-        if hk and u <= t < u + 0.5: s0 = self.side_of(i, u - 0.01); kk = out3((t - u) / 0.5)
+        if hk and u <= t < u + 0.5 and L['start'] < u: s0 = self.side_of(i, u - 0.01); kk = out3((t - u) / 0.5)   # 開場後才開始的句子不要再滑一次（不然會彈兩次）
         else: kk = out3(lt / 0.5)
         x = self.face_x(s0, im.width) + (self.face_x(s1, im.width) - self.face_x(s0, im.width)) * kk
         prevf = self.lines[i - 1].get('face') if i > 0 else None
@@ -748,10 +782,14 @@ class Explain(Design):
         if key in self._c: return self._c[key]
         L = self.lines[i]; C = self.content_of(i); sd = self.side(i); items = []
         mode = self.r.media_mode(i)
-        if mode == 'card' and self.media_photo(i) is not None:
+        if mode == 'card' and (self.media_photo(i) is not None or self.media_is_video(i)):
             tag = C['big'].replace('\n', ' ') if C['big'] and not C['plain'] else (L.get('emph') or [''])[0]
             if tag: items.append(dict(im=self.label_block(tag, 640, 90), delay=0.35))
-            items.append(dict(im=self.phone(Image.open(self.r.media_path(L['media']))), delay=0.0))
+            if self.media_is_video(i):   # 影片：手機框裡播影片（frame() 每格換畫面）
+                fr = self.video_frames(i, 330 - 24, 600 - 24, 34)
+                if fr: items.append(dict(im=self.phone(fr[0].convert('RGB')), delay=0.0, kind='phonevid'))
+            else:
+                items.append(dict(im=self.phone(Image.open(self.r.media_path(L['media']))), delay=0.0))
         elif C['steps']:
             items.append(dict(im=self.checklist(i), delay=0.0))
         elif C['big'] and not C['plain']:
@@ -849,6 +887,9 @@ class Explain(Design):
                 tj = since - dl
                 if tj <= 0: continue
                 k = 1.0 if (prev_steps and dl == 0) else back(tj / 0.32); a = clamp(tj / 0.12)
+                if kind == 'phonevid':
+                    fr = self.video_frames(i, 330 - 24, 600 - 24, 34)
+                    if fr: im = im.copy(); im.alpha_composite(fr[min(int(max(lt, 0) * FPS), len(fr) - 1)], (42, 42))
                 if kind == 'stamp':   # 印章：從大大的蓋下來，落地時輕輕一震
                     k = 1 + 0.9 * (1 - out3(tj / 0.22)); a = clamp(tj / 0.08)
                     if 0.22 < tj < 0.4: cx += 6 * math.sin(tj * 90)
