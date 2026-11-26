@@ -23,6 +23,7 @@ python scripts/voice.py sheet videos/片名/director.json
 python scripts/voice.py align videos/片名/director.json --audio videos/片名/錄音.m4a
 ```
 
+- 切完要看 `check/念稿比對.txt`：實際念的跟字幕不一樣，照念的改字幕 text（辨識的近音字、簡體不用管）
 - 切完要確認：`align` 如果說「只找到 N 段話、腳本有 M 句」，表示停頓不夠或念錯重念造成段數不對 → 請使用者句子之間停久一點重錄，或只重錄有問題的句子
 - 念錯重念：段數會比句數多，程式會把最短的停頓併起來；Claude 聽不到聲音，所以**一定要請使用者看預覽片，確認每句嘴型、字幕和聲音對得上**
 - 每句切好的錄音存在 `videos/片名/audio/line_XX_rec.wav`

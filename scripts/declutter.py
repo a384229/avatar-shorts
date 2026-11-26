@@ -7,7 +7,7 @@ voice.py align／redo 會自動呼叫；不想處理時加 --raw。全部在本�
 import numpy as np
 
 FILLER = {'en', 'e', 'a', 'ei', 'o', 'ng', 'm', 'eng', 'ai'}
-MAX_GAP, KEEP_GAP, PAD, FADE = 0.25, 0.15, 0.04, 0.008
+MAX_GAP, KEEP_GAP, PAD, FADE = 0.25, 0.15, 0.04, 0.012
 
 
 def chunks_of(x, sr, gap=0.15):

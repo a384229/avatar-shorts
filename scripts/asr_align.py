@@ -118,7 +118,75 @@ def align_lines(audio, lines):
     out = [[snap(a, starts), snap(b, ends)] for a, b in spans]
     for k in range(1, len(out)):   # 不重疊
         if out[k][0] < out[k - 1][1]: mid = (out[k][0] + out[k - 1][1]) / 2; out[k - 1][1] = mid; out[k][0] = mid
+    return refine(x, out, [norm(t) for t in lines], rec)
+
+
+def frame_db(x, hop=0.01):
+    h = int(SR * hop); n = len(x) // h
+    return 20 * np.log10(np.sqrt((x[:n * h].reshape(n, h) ** 2).mean(1)) + 1e-9)
+
+
+def _py(rec, y):
+    if len(y) < SR * 0.25: return []
+    s = rec.create_stream(); s.accept_waveform(SR, y); rec.decode_stream(s); return norm(s.result.text)
+
+
+def _edge_score(prev_ref, next_ref, hp, hn):
+    """切點好不好：前段結尾＝上一句最後的字、後段開頭＝下一句開頭的字；字跑錯邊扣分"""
+    ok = lambda a, b: _cost(a, b) <= 1
+    sc = 0.0
+    if prev_ref and hp:
+        sc += ok(prev_ref[-1], hp[-1]) + 0.5 * (len(prev_ref) > 1 and len(hp) > 1 and ok(prev_ref[-2], hp[-2]))
+        if next_ref and ok(next_ref[0], hp[-1]) and not ok(prev_ref[-1], hp[-1]): sc -= 1.5   # 下一句的字跑到這句尾巴
+    if next_ref and hn:
+        sc += ok(next_ref[0], hn[0]) + 0.5 * (len(next_ref) > 1 and len(hn) > 1 and ok(next_ref[1], hn[1]))
+        if prev_ref and ok(prev_ref[-1], hn[0]) and not ok(next_ref[0], hn[0]): sc -= 1.5     # 上一句的字跑到下一句開頭
+    return sc
+
+
+def refine(x, spans, refs, rec, win=0.3, look=1.6):
+    """句子黏在一起時（中間沒停頓），切點改到估計點 ±0.3 秒內最安靜的地方（10ms 一格），
+    再用辨識檢查前後兩句的頭尾字有沒有跑錯邊（字被切半、整個詞跑到下一句），選最好的切點；
+    ±0.3 秒內找不到頭尾都對的切點，就放寬到 ±0.8 秒再找一次。"""
+    db = frame_db(x); hop = 0.01; out = [list(v) for v in spans]
+
+    def score(k, f):
+        c = f * hop; d = db[min(f, len(db) - 1)]
+        hp = _py(rec, x[int(max(out[k - 1][0], c - look) * SR):int(c * SR)])
+        hn = _py(rec, x[int(c * SR):int(min(out[k][1], c + look) * SR)])
+        return _edge_score(refs[k - 1], refs[k], hp, hn) + (0.3 if d < -40 else 0) + max(0, -40 - d) * 0.005
+
+    for k in range(1, len(out)):
+        a, b = out[k - 1][1], out[k][0]
+        if b - a > 0.12: continue   # 中間本來就有停頓，不用動
+        t0 = (a + b) / 2; f0 = int(round(t0 / hop)); best = (score(k, f0), f0); full = 3.3
+        for w in (win, 0.8):
+            if best[0] >= full - 0.5: break
+            lo = max(int((t0 - w) / hop), int(out[k - 1][0] / hop) + 20); hi = min(int((t0 + w) / hop), int(out[k][1] / hop) - 20, len(db) - 2)
+            if hi <= lo: continue
+            seg = db[lo:hi + 1]
+            mins = [lo + i for i in range(1, len(seg) - 1) if seg[i] <= seg[i - 1] and seg[i] <= seg[i + 1]]
+            for f in sorted(set(sorted(mins, key=lambda f: db[f])[:6 if w == win else 10])):
+                sc = score(k, f)
+                if sc > best[0] + 1e-6: best = (sc, f)
+        out[k - 1][1] = out[k][0] = best[1] * hop
     return out
+
+
+def compare(lines, audios):
+    """每句錄音再辨識一次，跟腳本比：回傳 [(第幾句, 腳本, 辨識到的字, 不一樣的地方)]（字幕要照實際念的改）"""
+    import difflib
+    rec = recognizer(); res = []
+    for i, (t, f) in enumerate(zip(lines, audios), 1):
+        y = load_pcm(f); s = rec.create_stream(); s.accept_waveform(SR, y); rec.decode_stream(s); heard = s.result.text.strip()
+        r, h = norm(t), norm(heard)
+        sm = difflib.SequenceMatcher(None, r, h, autojunk=False); diff = []
+        for op, i1, i2, j1, j2 in sm.get_opcodes():
+            if op == 'equal': continue
+            if op == 'replace' and i2 - i1 == j2 - j1 and all(_cost(r[a], h[b]) <= 1 for a, b in zip(range(i1, i2), range(j1, j2))): continue   # 只是辨識成近音字
+            diff.append((op, ' '.join(r[i1:i2]), ' '.join(h[j1:j2])))
+        res.append((i, t, heard, diff))
+    return res
 
 
 def recognize(path):

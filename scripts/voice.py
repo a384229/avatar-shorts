@@ -230,7 +230,8 @@ def align(a):
     pcm = read_pcm(src); segs = []; adir = os.path.join(base, 'audio'); os.makedirs(adir, exist_ok=True)
     dc, rec = cleaner(a)
     for i, (ln, (s, e)) in enumerate(zip(D['lines'], speech), 1):
-        seg = pcm[int(max(0, s - .05) * SR) * 2:int((e + .05) * SR) * 2]
+        lo = speech[i - 2][1] if i > 1 else 0; hi = speech[i][0] if i < n else total   # 前後留白不能吃到隔壁句
+        seg = fade(pcm[int(max(lo, s - .05) * SR) * 2:int(min(hi, e + .05) * SR) * 2])
         write_wav(os.path.join(adir, f'line_{i:02d}_raw.wav'), seg)
         if dc:
             nx = D['lines'][i] if i < len(D['lines']) else {}
@@ -239,6 +240,7 @@ def align(a):
         f = os.path.join(adir, f'line_{i:02d}_rec.wav'); write_wav(f, seg); ln['audio'] = os.path.relpath(f, base)
         segs.append((ln, seg))
     D['voice_provider'] = 'recorded'
+    if not a.no_asr: spoken_check(D, base)
     print('每句切好的錄音在 audio/，某句要重錄：voice.py redo … --line 句號 --audio 新錄音')
     assemble(D, a.director, segs)
 
@@ -252,6 +254,31 @@ def cleaner(a):
         print(f'  ⚠ 去卡頓沒辦法用（{e}），保留原始錄音'); return None, None
     rec = None if getattr(a, 'no_asr', False) else declutter.recognizer_or_none()
     return declutter, rec
+
+
+def fade(pcm, ms=12):
+    """每段頭尾 12ms 淡入淡出，接起來不會有喀聲"""
+    import numpy as np
+    x = np.frombuffer(pcm, np.int16).astype(np.float32); f = int(SR * ms / 1000)
+    if len(x) > 2 * f: r = np.linspace(0, 1, f); x[:f] *= r; x[-f:] *= r[::-1]
+    return x.astype(np.int16).tobytes()
+
+
+def spoken_check(D, base, only=None):
+    """每句錄音再辨識一次，跟字幕比；不一樣的寫進 check/念稿比對.txt，字幕要照實際念的改"""
+    try:
+        import asr_align
+        idx = [i for i in range(len(D['lines'])) if only is None or i + 1 == only]
+        res = asr_align.compare([D['lines'][i]['text'] for i in idx], [os.path.join(base, D['lines'][i]['audio']) for i in idx])
+    except Exception as e:
+        print(f'  ⚠ 念稿比對沒辦法做（{e}）'); return
+    rows = []
+    for (k, t, heard, diff), i in zip(res, idx):
+        if diff: rows.append(f'第{i + 1}句\n  字幕：{t}\n  辨識：{heard}\n  差在：' + '；'.join(f'{"少念" if op == "delete" else "多念" if op == "insert" else "改念"}［{a or "-"}→{b or "-"}］' for op, a, b in diff))
+    os.makedirs(os.path.join(base, 'check'), exist_ok=True)
+    with open(os.path.join(base, 'check', '念稿比對.txt'), 'w') as fo:
+        fo.write('實際念的跟字幕不一樣的句子（辨識會把字認成近音字或簡體，照意思判斷；確定是念的不一樣就照念的改字幕 text）\n\n' + ('\n'.join(rows) or '全部一致'))
+    print(f'  念稿比對：{len(rows)} 句跟字幕不一樣' + ('，看 check/念稿比對.txt，照實際念的改字幕' if rows else '') )
 
 
 def write_wav(path, pcm):
@@ -271,6 +298,7 @@ def redo(a):
         ln = D['lines'][n - 1]; seg, note = dc.clean_pcm(read_pcm(f), SR, ln.get('say') or ln['text'], rec); write_wav(f, seg)
         if note: print(f'  第{n}句 去卡頓：' + '、'.join(note))
     D['lines'][n - 1]['audio'] = os.path.relpath(f, base)
+    if not getattr(a, 'no_asr', False): spoken_check(D, base, only=n)
     segs = [(ln, read_pcm(os.path.join(base, ln['audio']))) for ln in D['lines']]
     assemble(D, a.director, segs)
 
