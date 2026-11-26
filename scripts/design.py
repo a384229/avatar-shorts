@@ -872,12 +872,15 @@ class Explain(Design):
         else: scene.alpha_composite(im, (int(x), int(FACE_BOTTOM - im.height)))
         self.put_tag(scene, x, im.width)
         # 換段落（起承轉合換段）：斜的色塊從右往左刷過去
-        if i > 0 and t >= u and self.lines[i].get('part') and self.lines[i].get('part') != self.lines[i - 1].get('part') and lt < 0.4 and self.r.st.get('wipe', True):
-            q = lt / 0.4; ex = W * 1.6 * (1 - q) - W * 0.3
+        if i > 0 and t >= u and self.lines[i].get('part') and self.lines[i].get('part') != self.lines[i - 1].get('part') and lt < WIPE and self.r.st.get('wipe', True):
+            q = out3(lt / WIPE); ex = W * 1.6 * (1 - q) - W * 0.3
             poly = [(ex, 0), (ex + 420, 0), (ex + 420 - 700, H), (ex - 700, H)]
             wl = Image.new('RGBA', scene.size, (0, 0, 0, 0)); ImageDraw.Draw(wl).polygon(poly, fill=hexrgb(self.T['acc']) + (235,)); scene.alpha_composite(wl)
         out = scene.convert('RGB')
         return out if r.S == 1 else out.resize((r.w, r.h), Image.LANCZOS)
+
+
+WIPE = 0.22   # 換段斜刷轉場秒數（越小越快）
 
 
 def make(r, theme):
