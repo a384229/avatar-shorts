@@ -51,7 +51,7 @@ videos/片名/     每支片：script.txt、director.json、錄音稿.txt、使�
 ### 3. 請他提供產品照和素材（＋第一次做表情庫）
 - 照腳本建議 **2～3 個素材**：放第幾句、拍什麼或截什麼圖、怎麼拍（直式、自然光、背景乾淨）；最重要是**產品照**
 - 收到就放 `素材/`，那句導演表加 `media`（card＝放在中間內容區，照片會自動裁成卡片大小）；沒有也可以先出片，之後補再重出
-- **第一次用、還沒有表情庫** → 讀 `references/face-prompts.md`：給 ChatGPT 提示詞做 4×4 表情總表 → `python scripts/faces.py split 總表.png faces/` → `faces.py check faces/`，**用 Read 看 `faces/_總覽.jpg`** 給他確認。想先試：`faces.py demo faces/` 用示範角色
+- **第一次用、還沒有表情庫** → 讀 `references/face-prompts.md`：給 ChatGPT 提示詞做 4×4 表情總表 → `python scripts/faces.py split 總表.png faces/` （綠幕用色鍵，白底或其他底色自動改用 AI 去背，不會留色塊）→ `faces.py check faces/`，**用 Read 看 `faces/_總覽.jpg`** 給他確認。想先試：`faces.py demo faces/` 用示範角色
 - 產品照上若印有功效字樣（例如英文 anti-aging），提醒他自己決定要不要換一張
 
 ### 4. 收錄音檔 → 讀 `references/voice.md`

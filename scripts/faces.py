@@ -31,15 +31,53 @@ def chroma(a, bg):
     im.putalpha(al); return im
 
 
-def cutout(im, tol=38):
-    """去背：綠幕／藍幕用色鍵；白色或純色背景從四周邊緣把同色、連在一起的區域變透明（臉裡面的白色不會被挖掉）"""
+_AI = {}
+
+
+def ai_session():
+    """AI 去背（rembg + isnet，本機跑、不上傳）：第一次用自動安裝套件、下載模型約 180MB"""
+    if 's' in _AI: return _AI['s']
+    try:
+        try:
+            import rembg
+        except ImportError:
+            import subprocess
+            print('  第一次用 AI 去背，安裝 rembg…'); subprocess.run([sys.executable, '-m', 'pip', 'install', '-q', 'rembg[cpu]'], check=True)
+            import rembg
+        print('  AI 去背模型載入中（第一次會下載約 180MB）…')
+        _AI['s'] = rembg.new_session('isnet-general-use')
+    except Exception as e:
+        print(f'  ⚠ AI 去背沒辦法用（{e}），改用顏色去背'); _AI['s'] = None
+    return _AI['s']
+
+
+def ai_cutout(im):
+    s = ai_session()
+    if s is None: return None
+    from rembg import remove
+    out = remove(im.convert('RGB'), session=s).convert('RGBA')
+    al = out.getchannel('A').point(lambda v: 0 if v < 12 else v)          # 清掉幾乎透明的殘影
+    out.putalpha(al); return out
+
+
+def cutout(im, tol=38, method='auto'):
+    """去背：
+    - 已經是透明背景 → 不動
+    - 綠幕／藍幕 → 色鍵（最乾淨）
+    - 白底、米色、漸層、有陰影等其他背景 → AI 去背（不會留色塊、眼鏡和頭髮縫隙也去得乾淨）
+    - AI 不能用時才用舊方法：從四周把同色、連在一起的區域變透明
+    method：auto（預設）／ai（一律 AI）／color（只用顏色）"""
     im = im.convert('RGBA')
     if has_alpha(im): return im
     a = np.asarray(im).astype(np.int16)[..., :3]
     h, w = a.shape[:2]
     border = np.concatenate([a[0], a[-1], a[:, 0], a[:, -1]])
     bg = np.median(border, 0)
-    if max(bg[1], bg[2]) - max(bg[0], min(bg[1], bg[2])) > 80: return chroma(a, bg)
+    if method != 'ai' and max(bg[1], bg[2]) - max(bg[0], min(bg[1], bg[2])) > 80: return chroma(a, bg)
+    if method != 'color':
+        out = ai_cutout(im)
+        if out is not None: return out
+    tol = max(tol, float(np.sqrt(((border - bg) ** 2).sum(-1)).mean() * 2.5))   # 背景有漸層、雜訊時放寬
     dist = np.sqrt(((a - bg) ** 2).sum(-1))
     mask = Image.fromarray(np.where(dist < tol, 255, 0).astype(np.uint8)).copy()  # copy：fromarray 的圖是唯讀，floodfill 會失效
     for x in range(0, w, 8):
@@ -78,7 +116,7 @@ def cmd_split(a):
         r, c = divmod(i, cols)
         m = int(min(cw, ch) * a.margin)
         cell = src.crop((int(c * cw) + m, int(r * ch) + m, int((c + 1) * cw) - m, int((r + 1) * ch) - m))
-        cells.append(cutout(cell, a.tol))
+        cells.append(cutout(cell, a.tol, a.method))
     cells = fit_box(cells)
     os.makedirs(a.out, exist_ok=True)
     for k, im in zip(order, cells): im.save(os.path.join(a.out, k + '.png'))
@@ -88,7 +126,7 @@ def cmd_split(a):
 
 def cmd_cutout(a):
     files = [f for f in glob.glob(os.path.join(a.dir, '*')) if f.lower().endswith(('.png', '.jpg', '.jpeg', '.webp')) and not os.path.basename(f).startswith('_')]
-    ims = [cutout(Image.open(f), a.tol) for f in files]
+    ims = [cutout(Image.open(f), a.tol, a.method) for f in files]
     ims = fit_box(ims) if a.same_box else [fit_box([im])[0] for im in ims]
     out = os.path.join(a.dir, 'cut'); os.makedirs(out, exist_ok=True)
     for f, im in zip(files, ims): im.save(os.path.join(out, os.path.splitext(os.path.basename(f))[0] + '.png'))
@@ -144,9 +182,9 @@ def cmd_demo(a):
 if __name__ == '__main__':
     ap = argparse.ArgumentParser(); sp = ap.add_subparsers(dest='cmd', required=True)
     p = sp.add_parser('split'); p.add_argument('sheet'); p.add_argument('out'); p.add_argument('--grid', default='4x4')
-    p.add_argument('--order', help='逗號分隔，預設照 GRID16'); p.add_argument('--margin', type=float, default=0.02); p.add_argument('--tol', type=int, default=38)
+    p.add_argument('--order', help='逗號分隔，預設照 GRID16'); p.add_argument('--margin', type=float, default=0.02); p.add_argument('--tol', type=int, default=38); p.add_argument('--method', default='auto', choices=['auto', 'ai', 'color'], help='去背方式：auto 綠幕用色鍵、其他用 AI')
     p.set_defaults(f=cmd_split)
-    p = sp.add_parser('cutout'); p.add_argument('dir'); p.add_argument('--tol', type=int, default=38)
+    p = sp.add_parser('cutout'); p.add_argument('dir'); p.add_argument('--tol', type=int, default=38); p.add_argument('--method', default='auto', choices=['auto', 'ai', 'color'])
     p.add_argument('--same-box', action='store_true', help='所有圖用同一個裁切框（同一批生成、構圖一樣時用）'); p.set_defaults(f=cmd_cutout)
     p = sp.add_parser('check'); p.add_argument('dir'); p.set_defaults(f=cmd_check)
     p = sp.add_parser('demo'); p.add_argument('dir'); p.set_defaults(f=cmd_demo)
