@@ -1,4 +1,4 @@
-# avatar-anim-video-zh 大頭照動畫短影音
+# avatar-shorts 大頭照動畫短影音
 
 一個 Claude skill：用「你自己的表情大頭照」＋「你自己錄的旁白」，自動做出直式短影音。講到哪句換哪個表情，旁邊跳出道具，鏡頭推拉、轉場、音效、配樂、大字幕一次做好，看完跟 Claude 說「第 3 句換生氣」就幫你改。
 
@@ -18,7 +18,7 @@
 
 ## 安裝
 
-**Claude Code（電腦版）**：把這個資料夾放到 `~/.claude/skills/avatar-anim-video-zh/`。
+**Claude Code（電腦版）**：把這個資料夾放到 `~/.claude/skills/avatar-shorts/`。
 
 **claude.ai（網頁／手機 App）**：用電腦打開 claude.ai → 設定 → 功能 → Skills → 上傳這個資料夾的 zip，並打開「程式碼執行」。之後手機 App 也能用。
 
