@@ -448,13 +448,18 @@ class Design:
         txt = self.r.st.get('footer')
         if not txt: return None
         if 'tag' in self._c: return self._c['tag']
-        T = self.T; k = T['kind']; f = SANSM if k == 'swiss' else T['lead']; size = 30
-        w = int(self.tw(txt, f, size)) + 48; h = 56
-        im = Image.new('RGBA', (w + 16, h + 16), (0, 0, 0, 0))
-        if k == 'soft': self.rrect(im, [0, 0, w, h], 28, (255, 255, 255, 235), shadow=(0, 0, 0, 40), soff=(0, 6), blur=6); fg = T['ink']
-        elif k == 'polaroid': self.rrect(im, [0, 0, w, h], 4, '#FFFFFF', shadow=(0, 0, 0, 45), soff=(3, 6), blur=6); fg = T['ink']
-        else: ImageDraw.Draw(im).rectangle([0, 0, w, h], fill=T['ink']); fg = T.get('light', '#FFFFFF')
-        self.text(ImageDraw.Draw(im), (w / 2, h / 2), txt, f, size, fg, 'mm')
+        T = self.T; f = SANSM; size = 30
+        parts = [x.strip() for x in re.split(r'[｜|]', txt) if x.strip()]   # 「于葳影音｜網紅陪跑製造機」→ 兩段，中間用細線隔開
+        sep = 46; padx = 40; h = 60
+        tw = sum(self.tw(x, f, size) for x in parts) + sep * (len(parts) - 1)
+        w = int(tw + padx * 2)
+        im = Image.new('RGBA', (w + 24, h + 24), (0, 0, 0, 0))
+        self.rrect(im, [6, 4, 6 + w, 4 + h], h // 2, (255, 255, 255, 245), shadow=(40, 30, 20, 50), soff=(0, 6), blur=8)   # 白色膠囊
+        d = ImageDraw.Draw(im); x = 6 + padx; cy = 4 + h / 2; acc = hexrgb(T['acc'])
+        for j, ptxt in enumerate(parts):
+            if j:
+                d.line([(x + sep / 2, cy - 13), (x + sep / 2, cy + 13)], fill=acc + (200,), width=3); x += sep
+            x += self.text(d, (x, cy), ptxt, f, size, T['ink'], 'lm')
         self._c['tag'] = im; return im
 
     def put_tag(self, scene, fx, fw):
