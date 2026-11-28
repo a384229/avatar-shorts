@@ -96,7 +96,8 @@ def show(path):
 
 
 # 美安等夥伴最常踩的兩條：保健食品／保養品寫療效、招募片保證收入（只提醒，Claude 要改寫成實際體驗或過程）
-CLAIM_HEALTH = re.compile(r'抗老|抗衰|逆齡|凍齡|回春|治療|治癒|根治|療效|藥效|減肥|瘦身|降血[壓糖脂]|防癌|抗癌|延緩老化|排毒|增強免疫|提升免疫')
+CLAIM_HEALTH = re.compile(r'抗老|抗衰|逆齡|凍齡|回春|治療|治癒|根治|療效|藥效|減肥|瘦身|纖體|塑身|降血[壓糖脂]|防癌|抗癌|延緩老化|防止老化|排毒|增強免疫|提升免疫|增強抵抗力|經痛|痛經|生理痛|消痘|除痘|治痘|痘痘(?:變少|不見|消)|豐胸|增高|消炎|殺菌|更年期')
+CLAIM_CHECK = re.compile(r'美白|變白|淡斑|亮白|改善暗沉|改善膚質|變美')
 CLAIM_MONEY = re.compile(r'保證|穩賺|一定賺|月入|年收|躺著賺|躺賺|被動收入|財富自由|輕鬆賺|零風險|不用工作|快速致富|翻身')
 
 
@@ -108,7 +109,9 @@ def claim_warns(D):
     texts = [('開場大字', (D.get('hook') or {}).get('text', ''))] + [(f'第{i}句', l.get('text', '') + ' ' + (l.get('big') or '')) for i, l in enumerate(D['lines'], 1)]
     for where, t in texts:
         h = sorted(set(CLAIM_HEALTH.findall(t))); m = sorted(set(CLAIM_MONEY.findall(t)))
-        if h: out.append(f'{where} 有療效字眼「{"、".join(h)}」：保健食品／保養品不能寫功效，改成自己的使用習慣或感受')
+        if h: out.append(f'{where} 有療效字眼「{"、".join(h)}」：不能講，照 references/claims.md 換成官方可講的說法＋白話，或改成使用習慣')
+        c = sorted(set(CLAIM_CHECK.findall(t)))
+        if c: out.append(f'{where} 有「{"、".join(c)}」：食品不能講；化粧品要用官方說法且有佐證（references/claims.md），先確認是哪一類')
         if m: out.append(f'{where} 有收入字眼「{"、".join(m)}」：招募片不能保證收入，改成說自己為什麼做、過程是什麼')
     return out
 
